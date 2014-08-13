@@ -1,0 +1,185 @@
+   
+    // random bits from 2 rounds of TEA with key=0
+    uint2 TEA2(uint2 v) {
+        v.x += (v.y<<4u)^(v.y+0x9E3779B9u)^(v.y>>5u);
+        v.y += (v.x<<4u)^(v.x+0x9E3779B9u)^(v.x>>5u);
+        v.x += (v.y<<4u)^(v.y+0x3C6EF372u)^(v.y>>5u);
+        v.y += (v.x<<4u)^(v.x+0x3C6EF372u)^(v.x>>5u);
+        return v;
+    }    
+
+    /// random bits from 8 rounds of TEA with key=0
+    uint2 TEA8(uint2 v) {
+        v.x += (v.y<<4u)^(v.y+0x9E3779B9u)^(v.y>>5u); // 5u is a literal decimal unsigned integer
+        v.y += (v.x<<4u)^(v.x+0x9E3779B9u)^(v.x>>5u);
+        v.x += (v.y<<4u)^(v.y+0x3C6EF372u)^(v.y>>5u);
+        v.y += (v.x<<4u)^(v.x+0x3C6EF372u)^(v.x>>5u);
+        v.x += (v.y<<4u)^(v.y+0xDAA66D2Bu)^(v.y>>5u);
+        v.y += (v.x<<4u)^(v.x+0xDAA66D2Bu)^(v.x>>5u);
+        v.x += (v.y<<4u)^(v.y+0x78DDE6E4u)^(v.y>>5u);
+        v.y += (v.x<<4u)^(v.x+0x78DDE6E4u)^(v.x>>5u);
+        v.x += (v.y<<4u)^(v.y+0x1715609Du)^(v.y>>5u);
+        v.y += (v.x<<4u)^(v.x+0x1715609Du)^(v.x>>5u);
+        v.x += (v.y<<4u)^(v.y+0xB54CDA56u)^(v.y>>5u);
+        v.y += (v.x<<4u)^(v.x+0xB54CDA56u)^(v.x>>5u);
+        v.x += (v.y<<4u)^(v.y+0x5384540Fu)^(v.y>>5u);
+        v.y += (v.x<<4u)^(v.x+0x5384540Fu)^(v.x>>5u);
+        v.x += (v.y<<4u)^(v.y+0xF1BBCDC8u)^(v.y>>5u);
+        v.y += (v.x<<4u)^(v.x+0xF1BBCDC8u)^(v.x>>5u);
+        
+        return v;
+    }
+    
+    // convert random uvec2 to [0,1)x[0,1)
+    float2 rand(uint2 v) {
+        float2 result;
+        result.x = float(v.x & 0xFFFFu)/float(0x10000);
+        result.y = float(v.y & 0xFFFFu)/float(0x10000);
+        return result;
+    }
+
+    // convert value in [src0, src1) to [dst0, dst1)
+    float rangeMap(float val, float src0, float src1, float dst0, float dst1)
+    {
+        return (val - src0) * (dst1 - dst0) / (src1 - src0) + dst0;
+    }
+
+    __kernel void sph_kernel_findNeighbors(
+        int kParticleCount,
+        float viewW,
+        float viewH,
+        float viewD,
+        int nx,
+        int ny,
+        int nz,
+        float cellSize,
+        __global float4* pos,
+        __global int* gridCellIdxFixedUp,
+        __global int* neighborMap,
+        int maxNeighbors)
+    {
+        unsigned int gid = get_global_id(0);
+        
+        float3 myPos = pos[gid].xyz;
+
+        float rangeRatioX = (nx * cellSize - 0) / viewW;
+        float rangeRatioY = (ny * cellSize - 0) / viewH;
+        float rangeRatioZ = (nz * cellSize - 0) / viewD;
+        
+        float4 tempPos;
+        tempPos.x = (myPos.x - (-viewW/2)) * rangeRatioX + 0;
+        tempPos.y = (myPos.y - (-viewH/2)) * rangeRatioY + 0;
+        tempPos.z = (myPos.z - (-viewD/2)) * rangeRatioZ + 0;
+
+        // myPos(x, y, z) in [0, nx*2*h] mapped to 3d voxel coords [v3d.x, v3d.y, v3d.z]
+        // each between the range [0, n] (assuming cubic space)
+        float3 voxel3d;
+        voxel3d.x = tempPos.x / cellSize;
+        voxel3d.y = tempPos.y / cellSize;
+        voxel3d.z = tempPos.z / cellSize;
+
+        float3 corner;
+        
+        corner.x = floor(voxel3d.x + .5);
+        corner.y = floor(voxel3d.y + .5);
+        corner.z = floor(voxel3d.z + .5);
+
+        // int voxelID = floor(voxel3d.x) + floor(voxel3d.y) * nx + floor(voxel3d.z) * nx * ny;
+
+        // compute voxel IDs based on the position of the particles 
+        int voxel[8];
+        voxel[0] = corner.x + corner.y * nx + corner.z * nx * ny ;
+        voxel[1] = ((corner.x < 1) ? 0 : (corner.x-1)) + corner.y * nx + corner.z * nx * ny;
+        voxel[2] = corner.x + ((corner.y < 1) ? 0 : (corner.y - 1)) * nx + corner.z * nx * ny;
+        voxel[3] = ((corner.x < 1) ? 0 : (corner.x-1)) + ((corner.y < 1) ? 0 : (corner.y - 1)) * nx + corner.z * nx * ny;
+        voxel[4] = corner.x + corner.y * nx + ((corner.z < 1) ? 0 : (corner.z - 1)) * nx * ny;
+        voxel[5] = ((corner.x < 1) ? 0 : (corner.x-1)) + corner.y * nx + ((corner.z < 1) ? 0 : (corner.z - 1)) * nx * ny;
+        voxel[6] = corner.x + ((corner.y < 1) ? 0 : (corner.y - 1)) * nx + ((corner.z < 1) ? 0 : (corner.z - 1)) * nx * ny;
+        voxel[7] = ((corner.x < 1) ? 0 : (corner.x-1)) + ((corner.y < 1) ? 0 : (corner.y - 1)) * nx + ((corner.z < 1) ? 0 : (corner.z - 1)) * nx * ny;
+
+        // int random_voxel[8] = {0, 1, 2, 3, 4, 5, 6, 7};
+
+        // use work item ID, gid, so seed uvec2 v = (gid, gid+1) etc.
+        uint2 rvoxel01 = uint2(gid, gid+1);
+        uint2 rvoxel02 = uint2(gid+2, gid+3);
+        uint2 rvoxel03 = uint2(gid+4, gid+5);
+        uint2 rvoxel04 = uint2(gid+6, gid+7);
+        
+        rvoxel01 = TEA8(rvoxel01);
+        rvoxel02 = TEA8(rvoxel02);
+        rvoxel03 = TEA8(rvoxel03);
+        rvoxel04 = TEA8(rvoxel04);
+
+        float2 rvoxel01F = rand(rvoxel01);
+        float2 rvoxel02F = rand(rvoxel02);
+        float2 rvoxel03F = rand(rvoxel03);
+        float2 rvoxel04F = rand(rvoxel04);
+
+        // rangeMap(float val, float src0, float src1, float dst0, float dst1);
+        rvoxel01F.x = rangeMap(rvoxel01F.x, 0.0, 1.0, 0.0, 8.0);
+        rvoxel01F.y = rangeMap(rvoxel01F.y, 0.0, 1.0, 0.0, 8.0);
+        rvoxel02F.x = rangeMap(rvoxel02F.x, 0.0, 1.0, 0.0, 8.0);
+        rvoxel02F.y = rangeMap(rvoxel02F.y, 0.0, 1.0, 0.0, 8.0);
+        rvoxel03F.x = rangeMap(rvoxel03F.x, 0.0, 1.0, 0.0, 8.0);
+        rvoxel03F.y = rangeMap(rvoxel03F.y, 0.0, 1.0, 0.0, 8.0);
+        rvoxel04F.x = rangeMap(rvoxel04F.x, 0.0, 1.0, 0.0, 8.0);
+        rvoxel04F.y = rangeMap(rvoxel04F.y, 0.0, 1.0, 0.0, 8.0);
+        
+        int random_voxel[8] = {
+            (int)rvoxel01F.x, (int)rvoxel01F.y,
+            (int)rvoxel02F.x, (int)rvoxel02F.y,
+            (int)rvoxel03F.x, (int)rvoxel03F.y,
+            (int)rvoxel04F.x, (int)rvoxel04F.y};
+        
+        int i;
+        int j;
+        int count = 0;
+        // find 32 neighboring particles
+        // not handling "not enough neighboring particle" situation
+        // for now, assume we can find 32 neighbors for sure
+        for (i = 0; i < 8; i++)
+        {
+            // locate the voxel currently being investigated
+            int vID = voxel[random_voxel[i]];
+
+            int pid = gridCellIdxFixedUp[vID];
+                
+            // in voxel vID get a random number based on the number of particles in that voxel
+            // first, get the number of particles in voxel[voxelID], pCount
+            int npid = (vID + 1 < nx * ny * nz) ? gridCellIdxFixedUp[vID+1] : kParticleCount;
+            int pCount = npid - pid;
+
+            // if the voxel is empty, skip this iteration
+            // if (pCount == 0)
+            // {
+            //     continue;
+            // }
+
+            // uint2 rparticle = uint2(pCount, pCount+1);
+            // rparticle = TEA8(rparticle);
+            // float2 rparticleF = rand(rparticle);
+            // rparticleF.x = rangeMap(rparticleF.x, 0.0, 1.0, 0.0, (float)pCount);
+            // // rparticleF.y = rangeMap(rparticleF.y, 0.0, 1.0, 0.0, (float)pCount);
+
+            // int randPart = (int)rparticleF.x;
+            if (count < maxNeighbors)
+            {
+                for (j = pid; j < pid + pCount; j++)
+                {
+                    float3 diff = myPos.xyz - pos[j].xyz;
+                    float dist2 = diff.x * diff.x + diff.y * diff.y + diff.z * diff.z;
+                    
+                    if (dist2 < cellSize * cellSize)
+                    {
+                        int tempIdx = j;
+                        // neighborMap[maxNeighbors*gid+count] = j;
+                        // count++;
+                    }
+                    else
+                        continue;
+                }
+            }
+            else
+                break;
+        }
+    }
