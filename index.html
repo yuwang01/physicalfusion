@@ -4,7 +4,7 @@
 <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
 <meta content="utf-8" http-equiv="encoding">
 
-<title>SPH - WebGL+WebCL</title>
+<title>SPH - WebGL&WebCL Interop</title>
 <meta HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
 
 <style type="text/css">
@@ -158,7 +158,9 @@ p {
         vec3 nNormal = normalize(normal);
         vec3 nVertToLight = normalize(light);
 
-        float diffuseTerm = clamp(dot(nNormal, nVertToLight), 0.0, 1.0);
+        float dotVL = dot(nNormal, nVertToLight);
+
+        float diffuseTerm = clamp(dotVL, 0.0, 1.0);
         
         vec3 diffuseColor = vec3(.2, .2, .2);
         vec3 Idiff = diffuseColor * diffuseTerm;
@@ -169,7 +171,7 @@ p {
 
         vec3 color = Iamb + Idiff;
 
-        gl_FragColor = vec4(color, 0.5);
+        gl_FragColor = vec4(color, 0.0);
         
     }
 </script>
@@ -361,38 +363,50 @@ p {
 
         int particleID = partIdx[gid].y;
 
-        float4 tempPos = pos[particleID];
+        // float4 tempPos = pos[particleID];
 
-        sortedPos[gid].x = tempPos.x;
-        sortedPos[gid].y = tempPos.y;
-        sortedPos[gid].z = tempPos.z;
-        sortedPos[gid].w = tempPos.w;
+        sortedPos[gid].x = pos[particleID].x;
+        sortedPos[gid].y = pos[particleID].y;
+        sortedPos[gid].z = pos[particleID].z;
+        sortedPos[gid].w = pos[particleID].w;
 
-        float4 tempVel = vel[particleID];
+        // float4 tempVel = vel[particleID];
 
-        sortedVel[gid].x = tempVel.x;
-        sortedVel[gid].y = tempVel.y;
-        sortedVel[gid].z = tempVel.z;
-        sortedVel[gid].w = tempVel.w;
+        sortedVel[gid].x = vel[particleID].x;
+        sortedVel[gid].y = vel[particleID].y;
+        sortedVel[gid].z = vel[particleID].z;
+        sortedVel[gid].w = vel[particleID].w;
 
-        float4 tempPrevPos = prevPos[particleID];
+        // float4 tempPrevPos = prevPos[particleID];
 
-        sortedPrevPos[gid].x = tempPrevPos.x;
-        sortedPrevPos[gid].y = tempPrevPos.y;
-        sortedPrevPos[gid].z = tempPrevPos.z;
-        sortedPrevPos[gid].w = tempPrevPos.w;
+        sortedPrevPos[gid].x = prevPos[particleID].x;
+        sortedPrevPos[gid].y = prevPos[particleID].y;
+        sortedPrevPos[gid].z = prevPos[particleID].z;
+        sortedPrevPos[gid].w = prevPos[particleID].w;
 
         barrier(CLK_GLOBAL_MEM_FENCE);
 
-        pos[gid].x = sortedPos[gid].x;
-        pos[gid].y = sortedPos[gid].y;
-        pos[gid].z = sortedPos[gid].z;
-        pos[gid].w = sortedPos[gid].w;
+        // pos[gid].x = sortedPos[gid].x;
+        // pos[gid].y = sortedPos[gid].y;
+        // pos[gid].z = sortedPos[gid].z;
+        // pos[gid].w = sortedPos[gid].w;
 
-        vel[gid].x = sortedVel[gid].x;
-        vel[gid].y = sortedVel[gid].y;
-        vel[gid].z = sortedVel[gid].z;
-        vel[gid].w = sortedVel[gid].w;
+        // vel[gid].x = sortedVel[gid].x;
+        // vel[gid].y = sortedVel[gid].y;
+        // vel[gid].z = sortedVel[gid].z;
+        // vel[gid].w = sortedVel[gid].w;
+
+        pos[particleID].x = sortedPos[particleID].x;
+        pos[particleID].y = sortedPos[particleID].y;
+        pos[particleID].z = sortedPos[particleID].z;
+        pos[particleID].w = sortedPos[particleID].w;
+
+        barrier(CLK_GLOBAL_MEM_FENCE);
+
+        vel[particleID].x = sortedVel[particleID].x;
+        vel[particleID].y = sortedVel[particleID].y;
+        vel[particleID].z = sortedVel[particleID].z;
+        vel[particleID].w = sortedVel[particleID].w;
     }
 
 </script>
@@ -758,7 +772,7 @@ p {
 
 <div id='stats'>
     <h2>Default settings</h2>
-    <p>OpenCL device: GPU</p>
+    <p>OpenCL device: CPU</p>
 </div>
 </body>
 </html>

@@ -426,7 +426,7 @@ function InitCL() {
         if (userData.gpu) 
         {
             globalWorkSize[0] = kParticleCount;
-            globalWorkSize_sort[0] = kParticleCount / 2;
+            globalWorkSize_sort[0] = globalWorkSize[0] / 2;
             globalWorkSize_index[0] = voxel;
         }
         
@@ -721,8 +721,8 @@ function SimulateCL(cl) {
             console.log("SPH demo failed, Message: " + e.message);
         }
 
-        queue.enqueueReadBuffer(neighborMapBuffer, true, 0, SPHNeighborbufferSize, userData.neighborMap);
-        queue.enqueueReadBuffer(SortedPositionBuffer, true, 0, SPHPosbufferSize, userData.sortedPosition);
+        // queue.enqueueReadBuffer(neighborMapBuffer, true, 0, SPHNeighborbufferSize, userData.neighborMap);
+        // queue.enqueueReadBuffer(SortedPositionBuffer, true, 0, SPHPosbufferSize, userData.sortedPosition);
         // queue.enqueueReadBuffer(particleIndex, true, 0, SPHIdxbufferSize, userData.particleIndex);
 
     } catch (e) {
@@ -749,20 +749,29 @@ function GetWorkGroupSize() {
             console.error("No platforms available");
             return null;
         }
+
         var platform = platforms[0];
+
+        // console.log("**** Platform **** " + String(platform.getInfo(cl.PLATFORM_VENDOR)));
 
         var devices = platform.getDevices(userData.gpu ? cl.DEVICE_TYPE_GPU : cl.DEVICE_TYPE_CPU);
         if (devices.length === 0) {
             console.error("No devices available");
             return null;
         }
-        var device = devices[0];
+        var device = devices[1];
 
         workGroupSize = device.getInfo(cl.DEVICE_MAX_WORK_GROUP_SIZE);
         globalWorkSize[0] = device.getInfo(cl.DEVICE_MAX_COMPUTE_UNITS);
+        // temp = device.getInfo(webcl.DEVICE_NAME);
     } catch (e) {
         console.error("kParticleCount Demo Failed, Message: "+ e.message);
         workGroupSize = null;
     }
+    console.log("**** Work Group Size **** " + workGroupSize);
+    console.log("**** MAX compute units **** " + globalWorkSize[0]);
+
+    // console.log("**** Using device **** " + String(temp));
+
     return workGroupSize;
 }

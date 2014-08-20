@@ -117,10 +117,10 @@ var vertexNormals = [
 
 var planeVertices = [
 
-    -10*kViewWidth/2, -1*kViewHeight/2, -10*kViewDepth/2,
-     10*kViewWidth/2, -1*kViewHeight/2, -10*kViewDepth/2,
-     10*kViewWidth/2, -1*kViewHeight/2,  10*kViewDepth/2,
-    -10*kViewWidth/2, -1*kViewHeight/2,  10*kViewDepth/2
+    -10*kViewWidth, -1*kViewHeight, -10*kViewDepth,
+     10*kViewWidth, -1*kViewHeight, -10*kViewDepth,
+     10*kViewWidth, -1*kViewHeight,  10*kViewDepth,
+    -10*kViewWidth, -1*kViewHeight,  10*kViewDepth
 
 ];
 

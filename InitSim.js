@@ -50,6 +50,7 @@ function InitBreakDam() {
                     var vz = 0;
 
                     InitSPHParticle(count, x, y, z, vx, vy, vz);
+                    // console.log("particle " + count + " - position (" + x + ", " + y + ", " + z + ")");
                     count++;
                 }
             }
@@ -69,9 +70,9 @@ function InitMidAirDrop() {
             {
                 if (count < kParticleCount)
                 {
-                    var x = (i) * kCellSize/2// - kViewWidth / 4;
-                    var y = (j) * kCellSize/2// - kViewHeight/ 4;
-                    var z = (k) * kCellSize/2// - kViewDepth / 4;
+                    var x = (i) * kCellSize/2 - kViewWidth / 4;
+                    var y = (j) * kCellSize/2 - kViewHeight/ 4;
+                    var z = (k) * kCellSize/2 - kViewDepth / 4;
                     
                     var vx = 0;
                     var vy = 0;
