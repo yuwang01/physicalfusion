@@ -25,7 +25,7 @@ p {
 }
 #stats {
     position: absolute;
-    top: 360px;
+    top: 400px;
     width: 240px;
 
     /*border-style: inset;*/
@@ -60,13 +60,11 @@ p {
 
         vPos = position.xyz;
 
-
         gl_Position = mvp * pos;
 
         vColor = vec4(0.8, 0.8, .8, 1.0);
 
         gl_PointSize  = 10.0;
-        
     }
 </script>
 
@@ -746,9 +744,10 @@ p {
 <script src="Util/sampler.js"></script>
 <script src="Util/shader.js"></script>
 <script src="Util/J3DIMath.js"></script>
+<script src="SimCL.js"></script>
+
 <script src="Controller.js"></script>
 <script src="InitSim.js"></script>
-<script src="SimCL.js"></script>
 <script src="SimJS.js"></script>
 <script src="DrawGL.js"></script>
 <script src="DrawJS.js"></script>

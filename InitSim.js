@@ -62,28 +62,205 @@ function InitMidAirDrop() {
 
     var count = 0;
 
-    for (var j = 0; j < kGridHeight; j++)
+    for (var j = -kViewHeight/2; j < kViewHeight/2; j+=kCellSize/2)
     {
-        for (var i = 0; i < kGridWidth; i++)
+        for (var i = -kViewWidth/4; i < 0; i+=kCellSize/2)
         {
-            for (var k = 0; k < kGridDepth; k++)
+            for (var k = -kViewDepth/4; k < kViewDepth/4; k+=kCellSize/2)
             {
-                if (count < kParticleCount)
+                if (count < kParticleCount/2)
                 {
-                    var x = (i) * kCellSize/2 - kViewWidth / 4;
-                    var y = (j) * kCellSize/2 - kViewHeight/ 4;
-                    var z = (k) * kCellSize/2 - kViewDepth / 4;
+                    var x = i;
+                    var y = j;
+                    var z = k;
                     
                     var vx = 0;
                     var vy = 0;
                     var vz = 0;
 
                     InitSPHParticle(count, x, y, z, vx, vy, vz);
+                    // console.log("particle " + count + " - position (" + x + ", " + y + ", " + z + ")");
                     count++;
                 }
             }
         }
     }
+
+    for (var j = -kViewHeight/2; j < kViewHeight/2; j+=kCellSize/2)
+    {
+        for (var i = 0; i < kViewWidth/4; i+=kCellSize/2)    
+        {
+            for (var k = -kViewDepth/4; k < kViewDepth/4; k+=kCellSize/2)
+            {
+                if (count < kParticleCount)
+                {
+                    var x = i;
+                    var y = j;
+                    var z = k;
+                    
+                    var vx = 0;
+                    var vy = 0;
+                    var vz = 0;
+
+                    InitSPHParticle(count, x, y, z, vx, vy, vz);
+                    // console.log("particle " + count + " - position (" + x + ", " + y + ", " + z + ")");
+                    count++;
+                }
+            }
+        }
+    }
+
+}
+
+function InitTwoCubes() {
+    var count = 0;
+
+    for (var j = -kViewHeight/2; j < kViewHeight/2; j+=kCellSize/2)
+    {
+        for (var i = -kViewWidth/2; i < 0; i+=kCellSize/2)
+        {
+            for (var k = 0; k < kViewDepth/2; k+=kCellSize/2)
+            {
+                if (count < kParticleCount/2)
+                {
+                    var x = i;
+                    var y = j;
+                    var z = k;
+                    
+                    var vx = 0;
+                    var vy = 0;
+                    var vz = 0;
+
+                    InitSPHParticle(count, x, y, z, vx, vy, vz);
+                    // console.log("particle " + count + " - position (" + x + ", " + y + ", " + z + ")");
+                    count++;
+                }
+            }
+        }
+    }
+
+    for (var j = -kViewHeight/2; j < kViewHeight/2; j+=kCellSize/2)
+    {
+        for (var i = 0; i < kViewWidth/2; i+=kCellSize/2)    
+        {
+            for (var k = -kViewDepth/2; k < 0; k+=kCellSize/2)
+            {
+                if (count < kParticleCount)
+                {
+                    var x = i;
+                    var y = j;
+                    var z = k;
+                    
+                    var vx = 0;
+                    var vy = 0;
+                    var vz = 0;
+
+                    InitSPHParticle(count, x, y, z, vx, vy, vz);
+                    // console.log("particle " + count + " - position (" + x + ", " + y + ", " + z + ")");
+                    count++;
+                }
+            }
+        }
+    }
+
+}
+
+function InitBallDrop() {
+    var count = 0;
+
+    // for (var j = 0; j < kGridHeight; j++)
+    // {
+    //     for (var i = -kGridWidth; i < kGridWidth; i++)
+    //     {
+    //         for (var k = -kGridWidth; k < kGridDepth; k++)
+    //         {
+    //             if (count < kParticleCount/2)
+    //             {
+    //                 var x = (i) * kCellSize/2;// - kViewWidth / 4;
+    //                 var y = (j) * kCellSize/2 - kViewHeight/ 2;
+    //                 var z = (k) * kCellSize/2;// - kViewDepth / 4;
+                    
+    //                 var vx = 0;
+    //                 var vy = 0;
+    //                 var vz = 0;
+
+    //                 InitSPHParticle(count, x, y, z, vx, vy, vz);
+    //                 count++;
+    //             }
+    //         }
+    //     }
+
+    //     for (var i = -kGridWidth/4; i < kGridWidth/4; i++)
+    //     {
+    //         for (var k = -kGridDepth/2; k < kGridDepth/2; k++)
+    //         {
+    //             if (count < kParticleCount)
+    //             {
+    //                 var x = (i) * kCellSize/2;// - kViewWidth / 4;
+    //                 var y = (j) * kCellSize/2 - kViewHeight/ 4;
+    //                 var z = (k) * kCellSize/2;// - kViewDepth / 4;
+                    
+    //                 var vx = 0;
+    //                 var vy = 0;
+    //                 var vz = 0;
+
+    //                 InitSPHParticle(count, x, y, z, vx, vy, vz);
+    //                 count++;
+    //             }
+    //         }
+    //     }
+    // }
+
+    var count = 0;
+
+    for (var k = -kViewDepth/4; k < kViewDepth/4; k+=kCellSize/2)
+    {
+        for (var i = -kViewWidth/4; i < kViewWidth/4; i+=kCellSize/2)
+        {
+            for (var j = kViewHeight/4; j < kViewHeight/2; j+=kCellSize/2)    
+            {
+                if (count < kParticleCount/4)
+                {
+                    var x = i;
+                    var y = j;
+                    var z = k;
+                    
+                    var vx = 0;
+                    var vy = 0;
+                    var vz = 0;
+
+                    InitSPHParticle(count, x, y, z, vx, vy, vz);
+                    // console.log("particle " + count + " - position (" + x + ", " + y + ", " + z + ")");
+                    count++;
+                }
+            }
+        }
+    }
+
+    for (var j = -kViewHeight/2; j < 0; j+=kCellSize/2)
+    {
+        for (var k = -kViewDepth/2; k < kViewDepth/2; k+=kCellSize/2)    
+        {
+            for (var i = -kViewWidth/2; i < kViewWidth/2; i+=kCellSize/2)                
+            {
+                if (count < kParticleCount)
+                {
+                    var x = i;
+                    var y = j;
+                    var z = k;
+                    
+                    var vx = 0;
+                    var vy = 0;
+                    var vz = 0;
+
+                    InitSPHParticle(count, x, y, z, vx, vy, vz);
+                    // console.log("particle " + count + " - position (" + x + ", " + y + ", " + z + ")");
+                    count++;
+                }
+            }
+        }
+    }
+
 }
 
 function InitPoints() {

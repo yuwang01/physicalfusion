@@ -775,3 +775,37 @@ function GetWorkGroupSize() {
 
     return workGroupSize;
 }
+
+function reset() {
+    
+    //////////////////////////////////
+    // set position and velocity to the initial values after the new initialization
+    try {
+        queue.enqueueWriteBuffer(PositionBuffer, true, 0, SPHPosbufferSize, userData.position);
+    } catch (e)
+    {
+        console.error("SPH demo failed, Message: " + e.message);
+        return null;
+    }
+    
+    if (userData.isGLCLshared) 
+    {
+        queue.enqueueReleaseGLObjects([PositionBuffer]);
+    }
+
+    queue.finish();
+
+    try {
+
+        VelosityBuffer = context.createBuffer(cl.MEM_READ_WRITE, SPHPosbufferSize, userData.velocity);
+        if (VelosityBuffer === null) {
+            console.log("Failed to allocate device memory: VelosityBuffer");
+            return null;
+        }
+    } catch (e) 
+    {
+        console.log(e.message);
+        return null;
+    }
+    
+}

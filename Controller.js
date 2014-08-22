@@ -5,14 +5,14 @@ var WINH                = 960;          // drawing canvas height
 
 var kScreenWidth = WINW;
 var kScreenHeight = WINH;
-var kViewWidth = 3;
+var kViewWidth = 4;
 var kViewHeight = kScreenHeight*kViewWidth/kScreenWidth;
-var kViewDepth = 3;
+var kViewDepth = 4;
 
 var kPi = 3.1415926535;
 var kParticleCount = 4096;
 
-var kRestDensity = 25.0;
+var kRestDensity = 40.0;
 var kStiffness = 0.08;
 var kNearStiffness = 0.1;
 var kSurfaceTension = 0.0008;
@@ -226,10 +226,12 @@ function UserData() {
     this.simMode        = null;
     this.drawMode       = null;
     this.isSimRunning   = true;
+
+    this.initMode       = "Break Dam";
+
     this.is3D           = true;
     this.rotate         = false;
     this.isGLCLshared   = GLCL_SHARE_MODE;
-
     this.isFP64enabled  = FP64_ENABLED;
 
     this.ctx            = null;         // handle for Canvas2D context
@@ -240,7 +242,7 @@ function UserData() {
     this.drawSampler    = null;         // Draw time sampler
     this.gpu            = true;         // Use GPU as default device in CL context
 }
-
+    
 function Console() {
     this.Rotate = false;
     this.CLSimMode = true;
@@ -254,6 +256,7 @@ function Console() {
     this.Particles = "";
     this.SimFPS = "";
     this.DrawFPS = "";
+    this.SimOption = "Break Dam";
 }
 
 var userData = null;
@@ -274,6 +277,7 @@ var jssimmode;
 var jsdrawmode;
 var startsim;
 var start3d;
+var simOption;
 
 function RANDM1TO1() { return Math.random() * 2 - 1; }
 function RAND0TO1() { return Math.random(); }
@@ -295,6 +299,11 @@ function onLoad() {
         userData.isSimRunning = value;
     });
     
+    simOption = gui.add(setconsole, 'SimOption', [ '', 'Break Dam', 'Two Cube', 'Drop Cube', 'Drop Ball' ]).listen();
+    simOption.onChange(function(value){
+        userData.initMode = value;
+    });
+
     framerate = gui.add(setconsole, 'FrameRate').listen();
     gflops = gui.add(setconsole, 'GFLOPS').listen();
     mflops = gui.add(setconsole, 'MFLOPS').listen();
@@ -307,14 +316,14 @@ function onLoad() {
         userData.simMode = value;
         SetSimMode(userData.simMode);
     });
-
+    
     device = gui.add(setconsole, 'GPU').listen();
     device.onChange(function(value){
         userData.gpu = value;
         if (value == true)
             InitCL();
     });
-
+    
     jsdrawmode = gui.add(setconsole, 'GLDrawMode').listen();
     jsdrawmode.onChange(function(value){
         userData.drawMode = value;
@@ -386,7 +395,7 @@ function onLoad() {
 
 //////////////////////////////////////
 
-    InitParticleState();
+    // InitParticleState();
 
     userData.ctx = InitJS("canvas2D");
     userData.gl  = InitGL("canvas3D");
@@ -400,6 +409,7 @@ function onLoad() {
     setInterval( function() { userData.simSampler.display(); }, DISPLAYPERIOD);
     setInterval( function() { userData.drawSampler.display(); }, DISPLAYPERIOD);
     setInterval( ShowFLOPS, 2*DISPLAYPERIOD);
+
 }
 
 function ShowFLOPS() {
@@ -419,12 +429,14 @@ function ShowFLOPS() {
         setconsole.MFLOPS = flops;
         setconsole.GFLOPS = 0;
     }
-
 }
 
 function InitParticleState() {
+    
     InitBreakDam();
     // InitMidAirDrop();
+    // InitTwoCubes();
+    // InitBallDrop();
     // InitPoints();
     // InitBreakDamParticlesRand();
     // InitBreakDamParticles();
@@ -442,23 +454,48 @@ function InitParticleState() {
 
 function MainLoop() {
 
-    userData.drawSampler.endFrame();    // started at beginning of previous Draw()
-    userData.fpsSampler.markFrame();    // count a new frame
+    userData.drawSampler.endFrame();   
+    userData.fpsSampler.markFrame();   
 
     userData.simSampler.startFrame();
+
+    switch (userData.initMode) {
+        case "Break Dam":
+            console.log("initMode set to " + userData.initMode);
+            InitBreakDam();
+            reset();
+            break;
+        case "Two Cube":
+            console.log("initMode set to " + userData.initMode);
+            InitTwoCubes();
+            reset();
+            break;
+        case "Drop Cube":
+            console.log("initMode set to " + userData.initMode);
+            InitMidAirDrop();
+            reset();
+            break;
+        case "Drop Ball":
+            console.log("initMode set to " + userData.initMode);
+            InitBallDrop();
+            reset();
+            break;
+        default:
+            console.log("initMode set to " + userData.initMode);
+        }
+
     if(userData.isSimRunning) {
         if(userData.simMode === JS_SIM_MODE) {
             SimulateJS();
         }
         else {
-            SimulateCL(userData.cl); 
+            SimulateCL(userData.cl);
         }
     }
-    userData.simSampler.endFrame();
 
+    userData.simSampler.endFrame();
     userData.drawSampler.startFrame();
     Draw();
-    // end drawSampler when we re-enter MainLoop()
 }
 
 function Draw() {
@@ -469,8 +506,6 @@ function Draw() {
 }
 
 function SetSimMode(simMode) {
-    // var div = document.getElementById("sim");
-
     userData.simMode = simMode;
 }
 
