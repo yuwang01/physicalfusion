@@ -168,49 +168,6 @@ function InitTwoCubes() {
 function InitBallDrop() {
     var count = 0;
 
-    // for (var j = 0; j < kGridHeight; j++)
-    // {
-    //     for (var i = -kGridWidth; i < kGridWidth; i++)
-    //     {
-    //         for (var k = -kGridWidth; k < kGridDepth; k++)
-    //         {
-    //             if (count < kParticleCount/2)
-    //             {
-    //                 var x = (i) * kCellSize/2;// - kViewWidth / 4;
-    //                 var y = (j) * kCellSize/2 - kViewHeight/ 2;
-    //                 var z = (k) * kCellSize/2;// - kViewDepth / 4;
-                    
-    //                 var vx = 0;
-    //                 var vy = 0;
-    //                 var vz = 0;
-
-    //                 InitSPHParticle(count, x, y, z, vx, vy, vz);
-    //                 count++;
-    //             }
-    //         }
-    //     }
-
-    //     for (var i = -kGridWidth/4; i < kGridWidth/4; i++)
-    //     {
-    //         for (var k = -kGridDepth/2; k < kGridDepth/2; k++)
-    //         {
-    //             if (count < kParticleCount)
-    //             {
-    //                 var x = (i) * kCellSize/2;// - kViewWidth / 4;
-    //                 var y = (j) * kCellSize/2 - kViewHeight/ 4;
-    //                 var z = (k) * kCellSize/2;// - kViewDepth / 4;
-                    
-    //                 var vx = 0;
-    //                 var vy = 0;
-    //                 var vz = 0;
-
-    //                 InitSPHParticle(count, x, y, z, vx, vy, vz);
-    //                 count++;
-    //             }
-    //         }
-    //     }
-    // }
-
     var count = 0;
 
     for (var k = -kViewDepth/4; k < kViewDepth/4; k+=kCellSize/2)
@@ -495,21 +452,6 @@ function InitParticle(i, x, y, z, vx, vy, vz) {
     curVel[ii + 1] = vy;
     curVel[ii + 2] = vz;
 }
-
-// function InitSPHParticle(i, x, y, z, vx, vy, vz) {
-//     var position = userData.position;
-//     var velocity = userData.velocity;
-//     var ii = 4*i;
-
-//     position[ii + 0] = x;
-//     position[ii + 1] = y;
-//     position[ii + 2] = z;
-//     position[ii + 3] = 500;
-
-//     velocity[ii + 0] = vx + .5;
-//     velocity[ii + 1] = vy + .5;
-//     velocity[ii + 2] = vz + .5;
-// }
 
 function InitParticleV(i, pos, vel) {
     var curPos = userData.curPos;
