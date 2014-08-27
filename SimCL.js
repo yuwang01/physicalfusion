@@ -486,8 +486,8 @@ function SimulateCL(cl) {
             kernel_applyBodyForce.setArg(1, VelosityBuffer);
             kernel_applyBodyForce.setArg(2, new Float32Array([kDt]));
             
-            // queue.enqueueNDRangeKernel(kernel_applyBodyForce, globalWorkSize.length, [], globalWorkSize, []);
-            // queue.flush();
+            queue.enqueueNDRangeKernel(kernel_applyBodyForce, globalWorkSize.length, [], globalWorkSize, []);
+            queue.flush();
             
         } catch (e) {
             console.log("SPH kernel failed, Message: " + e.message);
