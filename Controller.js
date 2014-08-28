@@ -170,8 +170,8 @@ function UserData() {
     
     // this.neighborMapLoc  = null;
     
-    // this.densityLoc      = null;
-    // this.neardensityLoc  = null;
+    this.densityLoc      = null;
+    this.neardensityLoc  = null;
     
     // this.pressureLoc     = null;
     // this.nearpressureLoc = null;

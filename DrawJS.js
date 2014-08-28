@@ -13,7 +13,7 @@ function particleNeighbors (radius) {
         // var xi = userData.position[i*4+0];
         // var yi = userData.position[i*4+1];
         // var zi = userData.position[i*4+2];
-
+        
         var neighborString = new String("particle " + i + " neighbors: ");
 
         for (var j = 0; j < kParticleCount; j++) {
@@ -314,6 +314,8 @@ function DrawJS(ctx) {
     if(ctx === null)
         return;
         
+    // console.log("Painting on canvas");
+
     ctx.fillStyle = 'rgba(0,0,0,1)';
     ctx.fillRect(0, 0, WINW, WINH);
         
@@ -325,7 +327,7 @@ function DrawJS(ctx) {
     //     // console.error("gridCellIndex     [" + i + "]           -- " + gridCellIdx);
     //     console.error("gridCellIdxFixedUp[" + i + "]           -- " + gridCellIdxFixedUp);
     // }
-
+    
     var radius = kH;
     // particleNeighbors(radius);
     // computeDensityPressureALL(particleMass, pressureK, restDensity, radius);
@@ -333,66 +335,66 @@ function DrawJS(ctx) {
     // var DEBUG_Index = 1000;
     // computeDensityPressure(particleMass, pressureK, restDensity, DEBUG_Index, radius);
     // computeAcceleration(particleMass, viscosity, DEBUG_Index, radius);
-
+    
     for (var i=0; i < kParticleCount; i++)  {
         
-        // var x = userData.position[4*i+0];
-        // var y = userData.position[4*i+1];
-        // var z = userData.position[4*i+2];
-        // var w = userData.position[4*i+3];
+        var x = userData.position[4*i+0];
+        var y = userData.position[4*i+1];
+        var z = userData.position[4*i+2];
+        var w = userData.position[4*i+3];
 
         // console.error("WebCL: particle " + i + " is in voxel " + w);
-
+        
         // var vx = userData.velocity[4*i+0];
         // var vy = userData.velocity[4*i+1];
         // var vz = userData.velocity[4*i+2];
         // var vw = userData.velocity[4*i+3];
 
-        var sx = userData.sortedPosition[4*i+0];
-        var sy = userData.sortedPosition[4*i+1];
-        var sz = userData.sortedPosition[4*i+2];
-        var sw = userData.sortedPosition[4*i+3];        
+        // var sx = userData.sortedPosition[4*i+0];
+        // var sy = userData.sortedPosition[4*i+1];
+        // var sz = userData.sortedPosition[4*i+2];
+        // var sw = userData.sortedPosition[4*i+3];        
 
         // var svx = userData.sortedVelocity[4*i+0];
         // var svy = userData.sortedVelocity[4*i+1];
         // var svz = userData.sortedVelocity[4*i+2];
         // var svw = userData.sortedVelocity[4*i+3];        
         
-        var v0 = userData.neighborMap[kMaxNeighbourCount*i+0];
-        var v1 = userData.neighborMap[kMaxNeighbourCount*i+1];
-        var v2 = userData.neighborMap[kMaxNeighbourCount*i+2];
-        var v3 = userData.neighborMap[kMaxNeighbourCount*i+3];
-        var v4 = userData.neighborMap[kMaxNeighbourCount*i+4];
-        var v5 = userData.neighborMap[kMaxNeighbourCount*i+5];
-        var v6 = userData.neighborMap[kMaxNeighbourCount*i+6];
-        var v7 = userData.neighborMap[kMaxNeighbourCount*i+7];
+        // var v0 = userData.neighborMap[kMaxNeighbourCount*i+0];
+        // var v1 = userData.neighborMap[kMaxNeighbourCount*i+1];
+        // var v2 = userData.neighborMap[kMaxNeighbourCount*i+2];
+        // var v3 = userData.neighborMap[kMaxNeighbourCount*i+3];
+        // var v4 = userData.neighborMap[kMaxNeighbourCount*i+4];
+        // var v5 = userData.neighborMap[kMaxNeighbourCount*i+5];
+        // var v6 = userData.neighborMap[kMaxNeighbourCount*i+6];
+        // var v7 = userData.neighborMap[kMaxNeighbourCount*i+7];
 
-        var v8 = userData.neighborMap[kMaxNeighbourCount*i+8];
-        var v9 = userData.neighborMap[kMaxNeighbourCount*i+9];
-        var v10 = userData.neighborMap[kMaxNeighbourCount*i+10];
-        var v11 = userData.neighborMap[kMaxNeighbourCount*i+11];
-        var v12 = userData.neighborMap[kMaxNeighbourCount*i+12];
-        var v13 = userData.neighborMap[kMaxNeighbourCount*i+13];
-        var v14 = userData.neighborMap[kMaxNeighbourCount*i+14];
-        var v15 = userData.neighborMap[kMaxNeighbourCount*i+15];
+        // var v8 = userData.neighborMap[kMaxNeighbourCount*i+8];
+        // var v9 = userData.neighborMap[kMaxNeighbourCount*i+9];
+        // var v10 = userData.neighborMap[kMaxNeighbourCount*i+10];
+        // var v11 = userData.neighborMap[kMaxNeighbourCount*i+11];
+        // var v12 = userData.neighborMap[kMaxNeighbourCount*i+12];
+        // var v13 = userData.neighborMap[kMaxNeighbourCount*i+13];
+        // var v14 = userData.neighborMap[kMaxNeighbourCount*i+14];
+        // var v15 = userData.neighborMap[kMaxNeighbourCount*i+15];
 
-        var v16 = userData.neighborMap[kMaxNeighbourCount*i+16];
-        var v17 = userData.neighborMap[kMaxNeighbourCount*i+17];
-        var v18 = userData.neighborMap[kMaxNeighbourCount*i+18];
-        var v19 = userData.neighborMap[kMaxNeighbourCount*i+19];
-        var v20 = userData.neighborMap[kMaxNeighbourCount*i+20];
-        var v21 = userData.neighborMap[kMaxNeighbourCount*i+21];
-        var v22 = userData.neighborMap[kMaxNeighbourCount*i+22];
-        var v23 = userData.neighborMap[kMaxNeighbourCount*i+23];
+        // var v16 = userData.neighborMap[kMaxNeighbourCount*i+16];
+        // var v17 = userData.neighborMap[kMaxNeighbourCount*i+17];
+        // var v18 = userData.neighborMap[kMaxNeighbourCount*i+18];
+        // var v19 = userData.neighborMap[kMaxNeighbourCount*i+19];
+        // var v20 = userData.neighborMap[kMaxNeighbourCount*i+20];
+        // var v21 = userData.neighborMap[kMaxNeighbourCount*i+21];
+        // var v22 = userData.neighborMap[kMaxNeighbourCount*i+22];
+        // var v23 = userData.neighborMap[kMaxNeighbourCount*i+23];
 
-        var v24 = userData.neighborMap[kMaxNeighbourCount*i+24];
-        var v25 = userData.neighborMap[kMaxNeighbourCount*i+25];
-        var v26 = userData.neighborMap[kMaxNeighbourCount*i+26];
-        var v27 = userData.neighborMap[kMaxNeighbourCount*i+27];
-        var v28 = userData.neighborMap[kMaxNeighbourCount*i+28];
-        var v29 = userData.neighborMap[kMaxNeighbourCount*i+29];
-        var v30 = userData.neighborMap[kMaxNeighbourCount*i+30];
-        var v31 = userData.neighborMap[kMaxNeighbourCount*i+31];
+        // var v24 = userData.neighborMap[kMaxNeighbourCount*i+24];
+        // var v25 = userData.neighborMap[kMaxNeighbourCount*i+25];
+        // var v26 = userData.neighborMap[kMaxNeighbourCount*i+26];
+        // var v27 = userData.neighborMap[kMaxNeighbourCount*i+27];
+        // var v28 = userData.neighborMap[kMaxNeighbourCount*i+28];
+        // var v29 = userData.neighborMap[kMaxNeighbourCount*i+29];
+        // var v30 = userData.neighborMap[kMaxNeighbourCount*i+30];
+        // var v31 = userData.neighborMap[kMaxNeighbourCount*i+31];
         
         // if (i == DEBUG_Index)
         // {
@@ -426,27 +428,27 @@ function DrawJS(ctx) {
             // console.error("particle " + i + " acceleration: (" + paccX + ", " + paccY + ", " + paccZ + ", " + paccW + ")");
 
         // }
-
-        // // use GL orientation
-        // y = -y;
-
-        // var px = (WINW + (x * WINW))/2;
-        // var py = (WINH + (y * WINH))/2;
-        // var pz = (WINH + (z * WINH))/2;
-        // var pr = 4 * (pz/WINH);
         
-        // if(pr < 0) pr = 1;
-        // if(pr > 4) pr = 4;
+        // use GL orientation
+        y = -y;
 
-        sy = -sy;
-        
-        var px = (WINW + (sx * WINW))/2;
-        var py = (WINH + (sy * WINH))/2;
-        var pz = (WINH + (sz * WINH))/2;
+        var px = (WINW + (x * WINW))/2;
+        var py = (WINH + (y * WINH))/2;
+        var pz = (WINH + (z * WINH))/2;
         var pr = 4 * (pz/WINH);
         
         if(pr < 0) pr = 1;
         if(pr > 4) pr = 4;
+        
+        // sy = -sy;
+        
+        // var px = (WINW + (sx * WINW))/2;
+        // var py = (WINH + (sy * WINH))/2;
+        // var pz = (WINH + (sz * WINH))/2;
+        // var pr = 4 * (pz/WINH);
+        
+        // if(pr < 0) pr = 1;
+        // if(pr > 4) pr = 4;
         
         // var voxelID = userData.particleIndex[2*i];
         // var globalID = userData.particleIndex[2*i+1];
@@ -462,14 +464,14 @@ function DrawJS(ctx) {
         // console.error("(voxel, global)           -- " + "(" + sw + ", " + i + ")");
         // ctx.fillStyle = 'rgba('+ voxelID + ',' + globalID + ', 1, 1)';
         // ctx.fillStyle = 'rgba('+ voxelID + ',' + globalID + ', 0, 1)';
-        ctx.fillStyle = 'rgba('+ sw + ',' + i + ', 0, 1)';
+        // ctx.fillStyle = 'rgba('+ sw + ',' + i + ', 0, 1)';
+        ctx.fillStyle = 'rgba('+ w + ',' + i + ', 0, 1)';
 
         ctx.beginPath();
         ctx.arc(px, py, pr, 0, Math.PI*2, true);
         ctx.closePath();
         ctx.fill(); 
 
-        // ctx.fillRect(px, py, 1, 1);
-        ctx.fillRect( px, py, 1, 1);
+        ctx.fillRect(px, py, 1, 1);
     }
 }

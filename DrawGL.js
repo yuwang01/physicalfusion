@@ -165,16 +165,16 @@ function InitGL(canvasName) {
     gl.linkProgram(userData.particleProgram);
     gl.useProgram(userData.particleProgram);
     
-    userData.PosLoc = gl.getAttribLocation(userData.particleProgram, "position");
+    // userData.PosLoc = gl.getAttribLocation(userData.particleProgram, "position");
+    userData.positionVBO = gl.getAttribLocation(userData.particleProgram, "position");
     userData.mvpParticleLoc = gl.getUniformLocation(userData.particleProgram, "mvp");
+    userData.densityLoc = gl.getAttribLocation(userData.particleProgram, "density");
     
     userData.positionVBO = gl.createBuffer();
-    
     gl.bindBuffer(gl.ARRAY_BUFFER, userData.positionVBO);
     gl.bufferData(gl.ARRAY_BUFFER, userData.position, gl.DYNAMIC_DRAW);
 
     //////////////////////////////////////
-
     // cube
     //
     userData.cubeProgram  = gl.createProgram();
@@ -250,17 +250,11 @@ function InitGL(canvasName) {
             cameraTarget[0],   cameraTarget[1],   cameraTarget[2], 
             cameraUpVector[0], cameraUpVector[1], cameraUpVector[2]);
     
-    // gl.clear(gl.DEPTH_BUFFER_BIT);
-    // gl.disable(gl.BLEND);
-    // gl.enable(gl.DEPTH_TEST);
-    // gl.depthFunc(gl.MORE);
-    // gl.enable(gl.POINT_SMOOTH);
-    
+    gl.enable(gl.DEPTH_TEST);
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     // gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
     gl.clearColor(.15, .15, .15, 1);
-    // gl.clearColor(0.5, 0.08, 0.1, 1.0)
     gl.viewport(0, 0, canvas.width, canvas.height);
     
     return gl;
@@ -284,12 +278,12 @@ function DrawGL(gl) {
         userData.npMatrix.makeIdentity();
     }
     
-    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     
     // cube
     //
     if(userData.is3D) {
-
+        
 		gl.useProgram(userData.cubeProgram);
 		userData.mvpMatrix.setUniform(gl,userData.mvpCubeLoc, false);
         userData.npMatrix.setUniform(gl, userData.npCubeLoc, false);
@@ -300,7 +294,7 @@ function DrawGL(gl) {
         
         gl.enableVertexAttribArray(userData.cubeLoc);
 		gl.vertexAttribPointer(userData.cubeLoc, CUBE_ATTRIB_SIZE, gl.FLOAT, false, CUBE_ATTRIB_SIZE * Float32Array.BYTES_PER_ELEMENT, 0 );
-		gl.drawElements(gl.TRIANGLES, userData.cubeFacesIndices.length, gl.UNSIGNED_SHORT, 0);
+		// gl.drawElements(gl.TRIANGLES, userData.cubeFacesIndices.length, gl.UNSIGNED_SHORT, 0);
 
         //////////////////////////////////////
         // plane
@@ -317,12 +311,12 @@ function DrawGL(gl) {
         gl.drawElements(gl.TRIANGLES, userData.planeFacesIndices.length, gl.UNSIGNED_SHORT, 0);
 
     }
-
+    
     //////////////////////////////////////
     // SPH particles
     gl.useProgram(userData.particleProgram);
     userData.mvpMatrix.setUniform(gl, userData.mvpParticleLoc, false);
-
+    
     gl.bindBuffer(gl.ARRAY_BUFFER, userData.positionVBO);
     if(userData.simMode === JS_SIM_MODE || !userData.isGLCLshared) {
         gl.bufferSubData(gl.ARRAY_BUFFER, 0, userData.position);
