@@ -173,7 +173,7 @@ function InitGL(canvasName) {
     userData.positionVBO = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, userData.positionVBO);
     gl.bufferData(gl.ARRAY_BUFFER, userData.position, gl.DYNAMIC_DRAW);
-
+    
     //////////////////////////////////////
     // cube
     //
@@ -240,9 +240,9 @@ function InitGL(canvasName) {
     userData.modelMatrix.makeIdentity();
     
     var aspect = WINW / WINH;
-    userData.vpMatrix.perspective(60, aspect, 1, 1000);
+    userData.vpMatrix.perspective(48, aspect, 1, 1000);
     
-    var cameraPosition = [0, 0, 1.6*kViewDepth];
+    var cameraPosition = [0, 0, -1.6*kViewDepth];
     var cameraTarget = [0, 0, 0];
     var cameraUpVector = [0, 1, 0];      
     userData.vpMatrix.lookat(
@@ -250,6 +250,9 @@ function InitGL(canvasName) {
             cameraTarget[0],   cameraTarget[1],   cameraTarget[2], 
             cameraUpVector[0], cameraUpVector[1], cameraUpVector[2]);
     
+    gl.enable(gl.CULL_FACE);
+    gl.frontFace(gl.CW);
+
     gl.enable(gl.DEPTH_TEST);
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -271,7 +274,7 @@ function DrawGL(gl) {
     	userData.mvpMatrix.load(userData.vpMatrix);
     	userData.mvpMatrix.multiply(userData.modelMatrix);
         userData.npMatrix.load(userData.mvpMatrix);
-        userData.npMatrix.invert();
+        // userData.npMatrix.invert();
     }
     else {
     	userData.mvpMatrix.makeIdentity();
@@ -294,7 +297,7 @@ function DrawGL(gl) {
         
         gl.enableVertexAttribArray(userData.cubeLoc);
 		gl.vertexAttribPointer(userData.cubeLoc, CUBE_ATTRIB_SIZE, gl.FLOAT, false, CUBE_ATTRIB_SIZE * Float32Array.BYTES_PER_ELEMENT, 0 );
-		// gl.drawElements(gl.TRIANGLES, userData.cubeFacesIndices.length, gl.UNSIGNED_SHORT, 0);
+		gl.drawElements(gl.TRIANGLES, userData.cubeFacesIndices.length, gl.UNSIGNED_SHORT, 0);
 
         //////////////////////////////////////
         // plane

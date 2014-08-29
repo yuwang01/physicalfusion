@@ -1,5 +1,5 @@
-var WINW                = 960;          // drawing canvas width
-var WINH                = 960;          // drawing canvas height
+var WINW                = 800;          // drawing canvas width
+var WINH                = 800;          // drawing canvas height
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -12,7 +12,7 @@ var kViewDepth = 4;
 var kPi = 3.1415926535;
 var kParticleCount = 4096;
 
-var kRestDensity = 40.0;
+var kRestDensity = 80.0;
 var kStiffness = 0.08;
 var kNearStiffness = 0.1;
 var kSurfaceTension = 0.0008;
