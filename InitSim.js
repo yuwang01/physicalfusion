@@ -121,7 +121,7 @@ function InitTwoCubes() {
         {
             for (var k = 0; k < kViewDepth/2; k+=kCellSize/2)
             {
-                if (count < kParticleCount/2)
+                if (count < kParticleCount/3)
                 {
                     var x = i;
                     var y = j;
@@ -176,7 +176,7 @@ function InitBallDrop() {
         {
             for (var j = kViewHeight/4; j < kViewHeight/2; j+=kCellSize/2)    
             {
-                if (count < kParticleCount/4)
+                if (count < kParticleCount/3)
                 {
                     var x = i;
                     var y = j;

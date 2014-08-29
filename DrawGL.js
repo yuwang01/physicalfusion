@@ -244,7 +244,7 @@ function InitGL(canvasName) {
     
     var cameraPosition = [0, 0, -1.6*kViewDepth];
     var cameraTarget = [0, 0, 0];
-    var cameraUpVector = [0, 1, 0];      
+    var cameraUpVector = [0, 1, 0];
     userData.vpMatrix.lookat(
             cameraPosition[0], cameraPosition[1], cameraPosition[2],
             cameraTarget[0],   cameraTarget[1],   cameraTarget[2], 

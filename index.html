@@ -53,6 +53,7 @@ p {
 
     void main(void) {
         vec4 pos;
+        
         pos.xyz = position.xyz;
         pos.w  = 1.0;
 
@@ -103,11 +104,13 @@ p {
     varying vec4 position;
     varying vec3 light;
     varying vec3 normal;
+
+    varying vec3 eye;
     
     void main()
     {
-        vec3 lightPos = vec3(.0, .0, 3.0);
-        // vec3 lightPos = vec3(4.0, 4.0, 4.0);
+        vec3 lightPos = vec3(0.0, 0.0, 4.5);
+        vec3 eyePos = vec3(0.0, 0.0, 0.0);
 
         position = vec4(cube.xyz, 1.0);
 
@@ -116,6 +119,7 @@ p {
         normal = N.xyz;
 
         light = lightPos - position.xyz;
+        eye = eyePos - position.xyz;
 
         position = mvp * position;
         
@@ -131,25 +135,36 @@ p {
     varying vec3 light;
     varying vec3 normal;
 
+    varying vec3 eye;
+
     void main() {
         
         vec3 nNormal = normalize(normal);
         vec3 nVertToLight = normalize(light);
+        vec3 nVertToEye = normalize(eye);
 
-        float dotVL = dot(nNormal, nVertToLight);
-
-        float diffuseTerm = clamp(dotVL, 0.0, 1.0);
-        
-        vec3 diffuseColor = vec3(.8, .8, .8);
-        vec3 Idiff = diffuseColor * diffuseTerm;
-        
-        float ambientTerm = 0.01;
-        vec3 ambientColor = vec3(.6, .6, .6);
+        float ambientTerm = 0.02;
+        vec3 ambientColor = vec3(.4, .4, .4);
         vec3 Iamb = ambientColor * ambientTerm;
 
-        vec3 color = Iamb + Idiff;
+        float dotVL = clamp(dot(nNormal, nVertToLight), 0.0, 1.0);
+        float diffuseTerm = .3;
+        // vec3 diffuseColor = vec3(0.74, 0.71, 0.42);
+        vec3 diffuseColor = vec3(0.6, 0.6, 0.6);
+        vec3 Idiff = diffuseColor * diffuseTerm * dotVL;
+        
+        float shinness = 100.;
+        float specularTerm = 1.0 - ambientTerm - diffuseTerm;
+        vec3 specularColor = vec3(1.0, 1.0, 1.0);
+        
+        vec3 H = normalize(nVertToEye + nVertToLight);
+        float dotNH = clamp(dot(nNormal, H), 0.0, 1.0);
 
-        gl_FragColor = vec4(color, .8);
+        vec3 Ispec = specularColor * specularTerm * pow(dotNH, shinness);
+
+        vec3 color = Iamb + Idiff + Ispec;
+
+        gl_FragColor = vec4(color, 1.0);
         
     }
 </script>
