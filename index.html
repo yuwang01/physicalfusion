@@ -79,7 +79,9 @@ p {
     varying vec3 vPos;
 
     void main(void) {
-        vec4 InnerColor = vec4(.47, .27, .10, 1.0);
+        vec4 InnerColor = vec4(.6, .2, .10, 1.0);
+        // vec4 InnerColor = vec4(0.0, 0.392157, 0.0, 1.0);
+        // vec4 InnerColor = vec4(0.294118, 0.0, 0.509804, 1.0);
         vec4 OuterColor = vec4(0.0, 0.0, 0.0, 1.0);
 
         float dx = (gl_PointCoord.x - 0.5);
@@ -109,7 +111,7 @@ p {
     
     void main()
     {
-        vec3 lightPos = vec3(0.0, 0.0, 4.5);
+        vec3 lightPos = vec3(0.0, 0.0, 4.0);
         vec3 eyePos = vec3(0.0, 0.0, 0.0);
 
         position = vec4(cube.xyz, 1.0);
