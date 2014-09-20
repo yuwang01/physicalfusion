@@ -269,15 +269,15 @@ function DrawGL(gl) {
     
     if(userData.is3D) {
         if (userData.rotate) {
-    	   userData.modelMatrix.rotate(userData.theta, 0, 1, 0);
+    ﻿     userData.modelMatrix.rotate(userData.theta, 0, 1, 0);
         }
-    	userData.mvpMatrix.load(userData.vpMatrix);
-    	userData.mvpMatrix.multiply(userData.modelMatrix);
+    ﻿  userData.mvpMatrix.load(userData.vpMatrix);
+    ﻿  userData.mvpMatrix.multiply(userData.modelMatrix);
         userData.npMatrix.load(userData.mvpMatrix);
         // userData.npMatrix.invert();
     }
     else {
-    	userData.mvpMatrix.makeIdentity();
+    ﻿  userData.mvpMatrix.makeIdentity();
         userData.npMatrix.makeIdentity();
     }
     
@@ -287,17 +287,17 @@ function DrawGL(gl) {
     //
     if(userData.is3D) {
         
-		gl.useProgram(userData.cubeProgram);
-		userData.mvpMatrix.setUniform(gl,userData.mvpCubeLoc, false);
+﻿  ﻿  gl.useProgram(userData.cubeProgram);
+﻿  ﻿  userData.mvpMatrix.setUniform(gl,userData.mvpCubeLoc, false);
         userData.npMatrix.setUniform(gl, userData.npCubeLoc, false);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, userData.cubeFacesNormalVBO);
-		gl.bindBuffer(gl.ARRAY_BUFFER, userData.cubeFacesVertexVBO);
+﻿  ﻿  gl.bindBuffer(gl.ARRAY_BUFFER, userData.cubeFacesVertexVBO);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, userData.cubeFacesIndexVBO);
         
         gl.enableVertexAttribArray(userData.cubeLoc);
-		gl.vertexAttribPointer(userData.cubeLoc, CUBE_ATTRIB_SIZE, gl.FLOAT, false, CUBE_ATTRIB_SIZE * Float32Array.BYTES_PER_ELEMENT, 0 );
-		gl.drawElements(gl.TRIANGLES, userData.cubeFacesIndices.length, gl.UNSIGNED_SHORT, 0);
+﻿  ﻿  gl.vertexAttribPointer(userData.cubeLoc, CUBE_ATTRIB_SIZE, gl.FLOAT, false, CUBE_ATTRIB_SIZE * Float32Array.BYTES_PER_ELEMENT, 0 );
+﻿  ﻿  gl.drawElements(gl.TRIANGLES, userData.cubeFacesIndices.length, gl.UNSIGNED_SHORT, 0);
 
         //////////////////////////////////////
         // plane

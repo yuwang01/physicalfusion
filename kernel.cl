@@ -880,4 +880,482 @@ __kernel void sph_kernel_indexPostPass(
         oldVel[gid].xyzw = sortedVel[gid].xyzw;
 
     }
+
+__kernel void sph_kernel_applyBodyForce(
+            int kParticleCount,
+            __global float4* vel,
+            float dt)
+    {
+        unsigned int gid = get_global_id(0);
+
+        vel[gid].y -= 9.8 * dt;
+    }
+
+
+__kernel void sph_kernel_advance(
+        int kParticleCount,
+        float dt,
+        __global float4* position,
+        __global float4* prevPos,
+        __global float4* velocity)
+    {
+        unsigned int gid = get_global_id(0);
+        
+        prevPos[gid].xyzw = position[gid].xyzw;
+        position[gid].xyz += (float3)(dt) * velocity[gid].xyz;
+    }
+
+__kernel void sph_kernel_hashparticles(
+        float viewWidth,
+        float viewHeight,
+        float viewDepth,
+        int nx,
+        int ny,
+        int nz,
+        float cellSize,
+        __global float4* pos,
+        __global uint2* partIdx,
+        __global float4* vel)
+    {
+        unsigned int gid = get_global_id(0);
+
+        float3 tempPos;
+        // pos(x, y, z) in [-viewWidth/2, viewWidth/2] mapped to [0, nx*cellSize]
+        // newPos = (val - src0) / (src1 - src0) * (dst1 - dst0) + dst0
+        float rangeRatioX = (nx * cellSize - 0.0f) / viewWidth;
+        float rangeRatioY = (ny * cellSize - 0.0f) / viewHeight;
+        float rangeRatioZ = (nz * cellSize - 0.0f) / viewDepth;
+        
+        tempPos.x = (pos[gid].x - (-viewWidth/2) ) * rangeRatioX;
+        tempPos.y = (pos[gid].y - (-viewHeight/2)) * rangeRatioY;
+        tempPos.z = (pos[gid].z - (-viewDepth/2) ) * rangeRatioZ;
+
+        // myPos(x, y, z) in [0, nx*cellSize] mapped to 3d voxel coords [v3d.x, v3d.y, v3d.z]
+        // each between the range [0, n] (assuming cubic space)
+        float3 voxel3d;
+        voxel3d.x = tempPos.x / cellSize;
+        voxel3d.y = tempPos.y / cellSize;
+        voxel3d.z = tempPos.z / cellSize;
+
+        int voxelID = floor(voxel3d.x) + floor(voxel3d.y) * nx + floor(voxel3d.z) * nx * ny;
+        
+        pos[gid].w = voxelID;
+        
+        partIdx[gid].x = voxelID;
+        partIdx[gid].y = gid;        
+
+    }
+
+__kernel void sph_kernel_sort (
+        __global uint2* partIdx,
+        int stage,
+        int passOfStage,
+        int direction) 
+    {
+        uint sortIncreasing = direction;
+        uint threadId = get_global_id(0);
+    
+        uint pairDistance = 1 << (stage - passOfStage);
+        uint blockWidth   = 2 * pairDistance;
+
+        uint leftId = (threadId % pairDistance) 
+                   + (threadId / pairDistance) * blockWidth;
+
+        uint rightId = leftId + pairDistance;
+    
+        uint2 leftElement = partIdx[leftId];
+        uint2 rightElement = partIdx[rightId];
+    
+        uint sameDirectionBlockWidth = 1 << stage;
+    
+        if((threadId/sameDirectionBlockWidth) % 2 == 1)
+            sortIncreasing = 1 - sortIncreasing;
+
+        uint2 greater;
+        uint2 lesser;
+        if(leftElement.x > rightElement.x)
+        {
+            greater = leftElement;
+            lesser  = rightElement;
+        }
+        else
+        {
+            greater = rightElement;
+            lesser  = leftElement;
+        }
+    
+        if(sortIncreasing)
+        {
+            partIdx[leftId]  = lesser;
+            partIdx[rightId] = greater;
+        }
+        else
+        {
+            partIdx[leftId]  = greater;
+            partIdx[rightId] = lesser;
+        }
+    }
+
+__kernel void sph_kernel_sortPostPass (
+        __global float4* pos,
+        __global float4* vel,
+        __global uint2* partIdx,
+        __global float4* sortedPos,
+        __global float4* sortedVel,
+        __global float4* prevPos,
+        __global float4* sortedPrevPos)
+    {
+        unsigned int gid = get_global_id(0);
+
+        int particleID = partIdx[gid].y;
+
+        // float4 tempPos = pos[particleID];
+
+        sortedPos[gid].x = pos[particleID].x;
+        sortedPos[gid].y = pos[particleID].y;
+        sortedPos[gid].z = pos[particleID].z;
+        sortedPos[gid].w = pos[particleID].w;
+
+        // float4 tempVel = vel[particleID];
+
+        sortedVel[gid].x = vel[particleID].x;
+        sortedVel[gid].y = vel[particleID].y;
+        sortedVel[gid].z = vel[particleID].z;
+        sortedVel[gid].w = vel[particleID].w;
+
+        // float4 tempPrevPos = prevPos[particleID];
+
+        sortedPrevPos[gid].x = prevPos[particleID].x;
+        sortedPrevPos[gid].y = prevPos[particleID].y;
+        sortedPrevPos[gid].z = prevPos[particleID].z;
+        sortedPrevPos[gid].w = prevPos[particleID].w;
+
+        barrier(CLK_GLOBAL_MEM_FENCE);
+
+        // pos[gid].x = sortedPos[gid].x;
+        // pos[gid].y = sortedPos[gid].y;
+        // pos[gid].z = sortedPos[gid].z;
+        // pos[gid].w = sortedPos[gid].w;
+
+        // vel[gid].x = sortedVel[gid].x;
+        // vel[gid].y = sortedVel[gid].y;
+        // vel[gid].z = sortedVel[gid].z;
+        // vel[gid].w = sortedVel[gid].w;
+
+        pos[particleID].x = sortedPos[particleID].x;
+        pos[particleID].y = sortedPos[particleID].y;
+        pos[particleID].z = sortedPos[particleID].z;
+        pos[particleID].w = sortedPos[particleID].w;
+
+        barrier(CLK_GLOBAL_MEM_FENCE);
+
+        vel[particleID].x = sortedVel[particleID].x;
+        vel[particleID].y = sortedVel[particleID].y;
+        vel[particleID].z = sortedVel[particleID].z;
+        vel[particleID].w = sortedVel[particleID].w;
+    }
+
+__kernel void sph_kernel_indexx(
+        int kParticleCount,
+        // __global float4* sortedPos,
+        __global float4* pos,
+        __global int* gridCellIdx)
+    {
+        unsigned int gid = get_global_id(0);
+        gridCellIdx[gid] = -1;
+
+        // binary search into sortedPos and find first particle
+        // in voxel gid
+
+        int low = 0;
+        int hi = kParticleCount - 1;
+        int mid = 0;
+
+        while (low <= hi) {
+            mid = (hi + low) / 2;
+            // if (floor(sortedPos[mid].w) == gid) {
+            if (floor(pos[mid].w) == gid) {    
+                int front = mid - 1;
                 
+                // while((front >= 0) && (floor(sortedPos[front].w) == gid))
+                while((front >= 0) && (floor(pos[front].w) == gid))
+                {
+                    front--;
+                }
+
+                if (mid > front - 1)
+                {
+                    gridCellIdx[gid] = front + 1;
+                }
+
+                break;
+
+            // } else if ( sortedPos[mid].w < gid) {
+            } else if ( pos[mid].w < gid) {                
+                low = mid + 1;
+            } else {
+                hi = mid - 1;
+            }
+        }
+    }
+
+__kernel void sph_kernel_indexPostPass(
+        int kParticleCount,
+        __global int* gridCellIdx,
+        __global int* gridCellIdxFixedUp)
+    {
+        unsigned int gid = get_global_id(0);
+        
+        if (gridCellIdx[gid] != -1)
+        {
+            gridCellIdxFixedUp[gid] = gridCellIdx[gid];
+        } else {
+            int preCell = gid;
+        
+            while (preCell >= 0) 
+            {
+                int pid = gridCellIdx[preCell];
+                if (pid != -1)
+                {
+                    gridCellIdxFixedUp[gid] = pid;
+                    break;
+                }
+                else {
+                    preCell--;
+                }
+            }
+        }
+    }
+
+__kernel void sph_kernel_findNeighbors(
+        int kParticleCount,
+        float viewW,
+        float viewH,
+        float viewD,
+        int nx,
+        int ny,
+        int nz,
+        float cellSize,
+        __global float4* pos,
+        __global int* gridCellIdxFixedUp,
+        __global int* neighborMap,
+        int maxNeighbors,
+        float kEpsilon)
+    {
+        unsigned int gid = get_global_id(0);
+        
+        float3 myPos = pos[gid].xyz;
+
+        int count = 0;
+        int i;
+        int j;
+
+        // set all entries to be the particle itself
+        for (i = 0; i < maxNeighbors; i++)
+        {
+            neighborMap[maxNeighbors*gid+i] = gid;
+        }
+
+        for (j = 0; j < kParticleCount; j++)
+        {
+            // float3 particleJ = sortedPos[j].xyz;
+            float3 particleJ = pos[j].xyz;
+            float dist = length(myPos.xyz - particleJ);
+
+            if ((dist >= kEpsilon) && (dist <= cellSize) && (j != gid))
+            {
+                neighborMap[maxNeighbors*gid+count] = j;
+                count++;
+                if (count == maxNeighbors)
+                    break;
+            }
+        }
+    }
+
+__kernel void sph_kernel_pressure(
+        float m,
+        float cellSize,
+        float kNorm,
+        float kNearNorm,
+        int maxNeighbors,
+        float kStiffness,
+        float kNearStiffness,
+        float kRestDensity,
+        __global float4* pos,
+        __global int* neighborMap,
+        __global float* density,
+        __global float* nearDensity,
+        __global float* pressure,
+        __global float* nearPressure)
+    {
+        unsigned int gid = get_global_id(0);    
+
+        float3 myPos = pos[gid].xyz;
+
+        int i;
+        float3 posJ;
+        float tempDens = 0.0;
+        float tempNearDens = 0.0;
+
+        for (i = 0; i < maxNeighbors; i++)
+        {
+            int nID = neighborMap[maxNeighbors * gid+i];
+            if (nID == gid)
+                continue;
+
+            posJ = pos[nID].xyz;
+
+            float r = length(myPos - posJ);
+
+            float a = 1 - r/cellSize;
+
+            tempDens += m * a * a * a * kNorm;
+            tempNearDens += m * a * a * a * a * kNearNorm;
+            
+        }
+
+        density[gid] = tempDens;
+        nearDensity[gid] = tempNearDens;
+        pressure[gid] = kStiffness * (tempDens - m * kRestDensity);
+        nearPressure[gid] = kNearStiffness * tempNearDens;
+
+    }
+
+__kernel void sph_kernel_calcRelaxPos(
+        float m,
+        float cellSize,
+        float dt,
+        float dt2,
+        float kNearNorm,
+        float kNorm,
+        float kSurfaceTension,
+        float kLinearViscocity,
+        float kQuadraticViscocity,
+        int maxNeighbors,
+        __global float4* pos,
+        __global float4* vel,
+        __global int* neighborMap,
+        __global float* density,
+        __global float* nearDensity,
+        __global float* pressure,
+        __global float* nearPressure,
+        __global float4* relaxPos)
+    {
+        unsigned int gid = get_global_id(0);
+
+        float3 myPos = pos[gid].xyz;
+        float3 myVel = vel[gid].xyz;
+
+        float x = myPos.x;
+        float y = myPos.y;
+        float z = myPos.z;
+
+        int i;
+        float3 posJ;
+        float3 velJ;
+
+        for (i = 0; i < maxNeighbors; i++)
+        {
+            int nID = neighborMap[maxNeighbors * gid+i];
+            if (nID == gid)
+                continue;
+
+            posJ = pos[nID].xyz;
+
+            float3 diff = posJ - myPos;
+            float r = length(diff);
+
+            float dx = diff.x;
+            float dy = diff.y;
+            float dz = diff.z;
+
+            float a = 1 - r/cellSize;
+
+            float d = dt2 * ((nearPressure[gid] + nearPressure[nID]) * a * a * a * kNearNorm + (pressure[gid] + pressure[nID]) * a * a * kNorm) / 2.0;
+
+            x -= d * dx / (r * m);
+            y -= d * dy / (r * m);
+            z -= d * dz / (r * m);
+
+            x += (kSurfaceTension/m) * m * a * a * kNorm * dx;
+            y += (kSurfaceTension/m) * m * a * a * kNorm * dy;
+            z += (kSurfaceTension/m) * m * a * a * kNorm * dz;
+
+            velJ = vel[nID].xyz;
+
+            float3 diffV = myVel - velJ;
+            float u = diffV.x * dx + diffV.y * dy + diffV.z * dz;
+
+            if (u > 0)
+            {
+                u /= r;
+
+                float a = 1 - r/cellSize;
+
+                float I = .5 * dt * a * (kLinearViscocity * u + kQuadraticViscocity * u * u);
+
+                x -= I * dx * dt;
+                y -= I * dy * dt;
+                z -= I * dz * dt;
+            }
+        }
+
+        relaxPos[gid].x = x;
+        relaxPos[gid].y = y;
+        relaxPos[gid].z = z;
+
+    }
+
+__kernel void sph_kernel_moveToRelaxPos(
+        float dt,
+        __global float4* pos,
+        __global float4* prevPos,
+        __global float4* vel,
+        __global float4* relaxPos)
+    {
+        unsigned int gid = get_global_id(0);
+
+        pos[gid].x = relaxPos[gid].x;
+        pos[gid].y = relaxPos[gid].y;
+        pos[gid].z = relaxPos[gid].z;
+
+        vel[gid].x = (pos[gid].x - prevPos[gid].x) / dt;
+        vel[gid].y = (pos[gid].y - prevPos[gid].y) / dt;
+        vel[gid].z = (pos[gid].z - prevPos[gid].z) / dt;
+
+    }
+
+__kernel void sph_kernel_resolveCollisions(
+        float dt,
+        float pRadius,
+        float viewW,
+        float viewH,
+        float viewD,
+        __global float4* pos,
+        __global float4* vel)
+    {
+        unsigned int gid = get_global_id(0);
+
+        float3 myPos = pos[gid].xyz;
+        float3 myVel = vel[gid].xyz;
+
+        float3 center         = float3(0.0);
+        float3 boxSize        = float3(viewW/2-pRadius, viewH/2-pRadius, viewD/2-pRadius);
+        
+        float3 xLocal = myPos - center;
+        float3 contactPointLocal = min(boxSize, max(-boxSize, xLocal));
+        float3 contactPoint = contactPointLocal + center;
+        float distance = length(contactPoint - myPos);
+        
+        if (distance > 0.0 && length(myVel) > 0.0) 
+        {
+            float3 normal = normalize(sign(contactPointLocal - xLocal));
+            float restitution = .5*distance / (dt * length(myVel));
+            
+            vel[gid].xyz -= (float3)((1.0 + restitution) * dot(myVel, normal)) * normal;
+            pos[gid].xyz = contactPoint;
+        }
+
+    }
+
+    

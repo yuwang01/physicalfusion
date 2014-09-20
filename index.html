@@ -23,14 +23,36 @@ p {
     color: #00FF00;
     margin-left: 20px;
 }
+
 #stats {
     position: absolute;
-    top: 400px;
+    top: 420px;
     width: 240px;
 
     /*border-style: inset;*/
     border-style: groove;
 }
+
+#submit {
+    position: absolute;
+    top: 520px;
+    left: 10px;
+    width: 240px;
+
+    /*border-style: inset;*/
+    border-style: groove;
+}
+
+#output {
+    position: absolute;
+    top: 0px;
+    width: 0px;
+    height: 0px;
+    left: 720px;
+    background-color: #FFF;
+    display: none;
+    /*border-style: groove;   */
+} 
 
 </style>
 
@@ -95,6 +117,39 @@ p {
 
 </script>
 
+<script id="triangle-vshader" type="x-shader/x-vertex">
+    precision mediump float;
+    uniform mat4 mvp;
+    attribute vec3 marchingcube;
+    
+    varying vec4 vColor;
+
+    void main(void) {
+        vec4 pos;
+        
+        pos = vec4(marchingcube.xyz, 1.0);
+
+        gl_Position = mvp * pos;
+
+        vColor = vec4(1.0, 0.0, 0.0, 1.0);
+
+        gl_PointSize  = 2.0;
+    }
+
+</script>
+
+<script id="triangle-fshader" type="x-shader/x-fragment">
+    precision mediump float;
+    
+    varying vec4 vColor;
+    
+    void main(void) {
+        
+        gl_FragColor = vColor;
+    }
+
+</script>
+
 <script id="cube-vshader" type="x-shader/x-vertex">
     precision mediump float;
     uniform mat4 mvp;
@@ -111,7 +166,7 @@ p {
     
     void main()
     {
-        vec3 lightPos = vec3(0.0, 0.0, 4.0);
+        vec3 lightPos = vec3(0.0, 0.0, 3.0);
         vec3 eyePos = vec3(0.0, 0.0, 0.0);
 
         position = vec4(cube.xyz, 1.0);
@@ -390,7 +445,7 @@ p {
         // vel[gid].y = sortedVel[gid].y;
         // vel[gid].z = sortedVel[gid].z;
         // vel[gid].w = sortedVel[gid].w;
-
+        
         pos[particleID].x = sortedPos[particleID].x;
         pos[particleID].y = sortedPos[particleID].y;
         pos[particleID].z = sortedPos[particleID].z;
@@ -546,6 +601,7 @@ p {
         float kStiffness,
         float kNearStiffness,
         float kRestDensity,
+        float kEpsilon,
         __global float4* pos,
         __global int* neighborMap,
         __global float* density,
@@ -576,12 +632,337 @@ p {
 
             tempDens += m * a * a * a * kNorm;
             tempNearDens += m * a * a * a * a * kNearNorm;
+            
         }
 
         density[gid] = tempDens;
         nearDensity[gid] = tempNearDens;
         pressure[gid] = kStiffness * (tempDens - m * kRestDensity);
         nearPressure[gid] = kNearStiffness * tempNearDens;
+
+    }
+
+</script>
+
+<script id="mc_kernel_gridval" type="x-kernel">
+
+    __kernel void mc_kernel_gridval(
+        int kParticleCount,
+        float m,
+        float cellSize,
+        float kNorm,
+        float kEpsilon,
+        __global float4* pos,
+        __global float* mcgrid)
+    {
+        unsigned int gid = get_global_id(0);
+
+        // marching cubes step: update grid point values
+        // each particle update up to 8 vertices
+        float3 vertPos0 = float3(mcgrid[32*gid+0], mcgrid[32*gid+1], mcgrid[32*gid+2]);
+        float3 vertPos1 = float3(mcgrid[32*gid+4], mcgrid[32*gid+5], mcgrid[32*gid+6]);
+        float3 vertPos2 = float3(mcgrid[32*gid+8], mcgrid[32*gid+9], mcgrid[32*gid+10]);
+        float3 vertPos3 = float3(mcgrid[32*gid+12], mcgrid[32*gid+13], mcgrid[32*gid+14]);
+        float3 vertPos4 = float3(mcgrid[32*gid+16], mcgrid[32*gid+17], mcgrid[32*gid+18]);
+        float3 vertPos5 = float3(mcgrid[32*gid+20], mcgrid[32*gid+21], mcgrid[32*gid+22]);
+        float3 vertPos6 = float3(mcgrid[32*gid+24], mcgrid[32*gid+25], mcgrid[32*gid+26]);
+        float3 vertPos7 = float3(mcgrid[32*gid+28], mcgrid[32*gid+29], mcgrid[32*gid+30]);
+
+        float r = 0.0;
+        float a = 0.0;
+        
+        float tempDens0 = 0.0;
+        float tempDens1 = 0.0;
+        float tempDens2 = 0.0;
+        float tempDens3 = 0.0;
+        float tempDens4 = 0.0;
+        float tempDens5 = 0.0;
+        float tempDens6 = 0.0;
+        float tempDens7 = 0.0;
+        
+        float3 pPos = float3(0.0, 0.0, 0.0);
+
+        int i;
+        for (i = 0; i < kParticleCount; i++)
+        {   
+            pPos = pos[i].xyz;
+
+            r = length(pPos - vertPos0);
+            if ((r >= kEpsilon) && (r <= cellSize))
+            {
+                a = 1.0 - r/cellSize;
+                tempDens0 += m * a * a * kNorm;
+            }
+
+            r = length(pPos - vertPos1);
+            if ((r >= kEpsilon) && (r <= cellSize))
+            {
+                a = 1.0 - r/cellSize;
+                tempDens1 += m * a * a * kNorm;
+            }
+            
+            r = length(pPos - vertPos2);
+            if ((r >= kEpsilon) && (r <= cellSize))
+            {
+                a = 1.0 - r/cellSize;
+                tempDens2 += m * a * a * kNorm;
+            }
+            
+            r = length(pPos - vertPos3);
+            if ((r >= kEpsilon) && (r <= cellSize))
+            {
+                a = 1.0 - r/cellSize;
+                tempDens3 += m * a * a * kNorm;
+            }
+            
+            r = length(pPos - vertPos4);
+            if ((r >= kEpsilon) && (r <= cellSize))
+            {
+                a = 1.0 - r/cellSize;
+                tempDens4 += m * a * a * kNorm;
+            }
+            
+            r = length(pPos - vertPos5);
+            if ((r >= kEpsilon) && (r <= cellSize))
+            {
+                a = 1.0 - r/cellSize;
+                tempDens5 += m * a * a * kNorm;
+            }
+            
+            r = length(pPos - vertPos6);
+            if ((r >= kEpsilon) && (r <= cellSize))
+            {
+                a = 1.0 - r/cellSize;
+                tempDens6 += m * a * a * kNorm;
+            }
+            
+            r = length(pPos - vertPos7);
+            if ((r >= kEpsilon) && (r <= cellSize))
+            {
+                a = 1.0 - r/cellSize;
+                tempDens7 += m * a * a * kNorm;
+            }
+
+        }
+
+        mcgrid[32*gid+3] = tempDens0;
+        mcgrid[32*gid+7] = tempDens1;
+        mcgrid[32*gid+11] = tempDens2;
+        mcgrid[32*gid+15] = tempDens3;
+        mcgrid[32*gid+19] = tempDens4;
+        mcgrid[32*gid+23] = tempDens5;
+        mcgrid[32*gid+27] = tempDens6;
+        mcgrid[32*gid+31] = tempDens7;
+        
+    }
+</script>
+
+<script id="mc_kernel_cubeindex" type="x-kernel">
+    
+    __kernel void mc_kernel_cubeindex(
+        float isolevel,
+        __global float* mcgrid,
+        __global unsigned char* cubeindex)
+    {
+        unsigned int gid = get_global_id(0);
+
+        unsigned char idx;
+        
+        // if (mcgrid[32*gid+3] < isolevel)  idx |= 1;
+        // if (mcgrid[32*gid+7] < isolevel)  idx |= 2;
+        // if (mcgrid[32*gid+11] < isolevel) idx |= 4;
+        // if (mcgrid[32*gid+15] < isolevel) idx |= 8;
+        // if (mcgrid[32*gid+19] < isolevel) idx |= 16;
+        // if (mcgrid[32*gid+23] < isolevel) idx |= 32;
+        // if (mcgrid[32*gid+27] < isolevel) idx |= 64;
+        // if (mcgrid[32*gid+31] < isolevel) idx |= 128;
+
+        idx =  (mcgrid[32*gid+3] < isolevel);
+        idx += (mcgrid[32*gid+7] < isolevel)*2;
+        idx += (mcgrid[32*gid+11] < isolevel)*4;
+        idx += (mcgrid[32*gid+15] < isolevel)*8;
+        idx += (mcgrid[32*gid+19] < isolevel)*16;
+        idx += (mcgrid[32*gid+23] < isolevel)*32;
+        idx += (mcgrid[32*gid+27] < isolevel)*64;
+        idx += (mcgrid[32*gid+31] < isolevel)*128;
+
+        cubeindex[gid] = idx;
+    }
+
+</script>
+
+<script id="mc_kernel_polygonisecube" type="x-kernel">
+
+    float ABS(float diff)
+    {
+        if (diff < 0)
+            return -1.0*diff;
+        else
+            return diff;
+    }
+
+    float3 VertexInterp(float isoval, float4 p1, float4 p2)
+    {
+        float mu;
+        float3 p = float3(0.0, 0.0, 0.0);
+
+        if (ABS(isoval - p1.w) < 0.00001)
+        {
+            p = p1.xyz;
+            
+        }
+
+        if (ABS(isoval - p2.w) < 0.00001)
+        {
+            p = p2.xyz;
+            
+        } 
+
+        if (ABS(p1.w - p2.w) < 0.00001)
+        {
+            p = p1.xyz;
+            
+        } 
+
+        mu = (isoval - p1.w) / (p2.w - p1.w);
+        p.x = p1.x + mu * (p2.x - p1.x);
+        p.y = p1.y + mu * (p2.y - p1.y);
+        p.z = p1.z + mu * (p2.z - p1.z);
+
+        p.x = mu;
+        p.y = mu;
+        p.z = mu;
+        
+        return p;
+    }
+    
+    __kernel void mc_kernel_polygonisecube(
+        __global unsigned short* edgetable,
+        __global signed char* tritable,
+        __global unsigned char* cubeindex,
+        __global float* mcgrid,
+        float isolevel,
+        __global float* triangles,
+        __global char* trianglescount)
+    {
+        unsigned int gid = get_global_id(0);
+        
+        unsigned char cubeidx = cubeindex[gid];
+        unsigned short edges = edgetable[cubeidx];
+
+        float4 vert0 = float4(mcgrid[32*gid+0],  mcgrid[32*gid+1],  mcgrid[32*gid+2],  mcgrid[32*gid+3]);
+        float4 vert1 = float4(mcgrid[32*gid+4],  mcgrid[32*gid+5],  mcgrid[32*gid+6],  mcgrid[32*gid+7]);
+        float4 vert2 = float4(mcgrid[32*gid+8],  mcgrid[32*gid+9],  mcgrid[32*gid+10], mcgrid[32*gid+11]);
+        float4 vert3 = float4(mcgrid[32*gid+12], mcgrid[32*gid+13], mcgrid[32*gid+14], mcgrid[32*gid+15]);
+        float4 vert4 = float4(mcgrid[32*gid+16], mcgrid[32*gid+17], mcgrid[32*gid+18], mcgrid[32*gid+19]);
+        float4 vert5 = float4(mcgrid[32*gid+20], mcgrid[32*gid+21], mcgrid[32*gid+22], mcgrid[32*gid+23]);
+        float4 vert6 = float4(mcgrid[32*gid+24], mcgrid[32*gid+25], mcgrid[32*gid+26], mcgrid[32*gid+27]);
+        float4 vert7 = float4(mcgrid[32*gid+28], mcgrid[32*gid+29], mcgrid[32*gid+30], mcgrid[32*gid+31]);
+
+        char ntriangle = 0;
+
+        float3 vertlist[12];
+
+        // cube is entirely in/out of the surface
+        if (edges == 0)
+        {
+            ntriangle = 0;
+        }
+        else
+        {
+            if (edges & 1)
+            {
+                vertlist[0] = VertexInterp(isolevel, vert0, vert1);
+            } else if (edges & 2)
+            {
+                vertlist[1] = VertexInterp(isolevel, vert1, vert2);
+            } else if (edges & 4)
+            {
+                vertlist[2] = VertexInterp(isolevel, vert2, vert3);
+            } else if (edges & 8)
+            {
+                vertlist[3] = VertexInterp(isolevel, vert3, vert0);
+            } else if (edges & 16)
+            {
+                vertlist[4] = VertexInterp(isolevel, vert4, vert5);
+            } else if (edges & 32)
+            {
+                vertlist[5] = VertexInterp(isolevel, vert5, vert6);
+            } else if (edges & 64)
+            {
+                vertlist[6] = VertexInterp(isolevel, vert6, vert7);
+            } else if (edges & 128)
+            {
+                vertlist[7] = VertexInterp(isolevel, vert7, vert4);
+            } else if (edges & 256)
+            {
+                vertlist[8] = VertexInterp(isolevel, vert0, vert4);
+            } else if (edges & 512)
+            {
+                vertlist[9] = VertexInterp(isolevel, vert1, vert5);
+            } else if (edges & 1024)
+            {
+                vertlist[10] = VertexInterp(isolevel, vert2, vert6);
+            } else if (edges & 2048)
+            {
+                vertlist[11] = VertexInterp(isolevel, vert3, vert7);
+            }
+            
+            int i;
+            
+            for (i=0; tritable[cubeidx*16+i] != -1; i+=3)
+            {
+                triangles[45*gid+9*i+0] = vertlist[tritable[cubeidx * 16 + i]].x;
+                triangles[45*gid+9*i+1] = vertlist[tritable[cubeidx * 16 + i]].y;
+                triangles[45*gid+9*i+2] = vertlist[tritable[cubeidx * 16 + i]].z;
+                
+                triangles[45*gid+9*i+3] = vertlist[tritable[cubeidx * 16 + i + 1]].x;
+                triangles[45*gid+9*i+4] = vertlist[tritable[cubeidx * 16 + i + 1]].y;
+                triangles[45*gid+9*i+5] = vertlist[tritable[cubeidx * 16 + i + 1]].z;
+
+                triangles[45*gid+9*i+6] = vertlist[tritable[cubeidx * 16 + i + 2]].x;
+                triangles[45*gid+9*i+7] = vertlist[tritable[cubeidx * 16 + i + 2]].y;
+                triangles[45*gid+9*i+8] = vertlist[tritable[cubeidx * 16 + i + 2]].z;
+
+                ntriangle++;
+            }
+        }
+        
+        trianglescount[gid] = ntriangle;        
+    }
+
+</script>
+
+<script id="mc_kernel_packtriangles" type="x-kernel">
+
+    __kernel void mc_kernel_packtriangles(
+        __global float* triangles,
+        __global char* trianglescount,
+        __global float* trianglesRender)
+    {
+        unsigned int gid = get_global_id(0);
+
+        // char beforeMe = 0;
+
+        // int i;
+        // for (i = 0; i < gid; i++)
+        // {
+        //     beforeMe += trianglescount[i];
+        // }
+
+        // for (i = 0; i < trianglescount[gid]; i++)
+        // {
+        //     // trianglesRender[3*beforeMe+3*i+0] = triangles[15*gid+3*i+0];
+        //     // trianglesRender[3*beforeMe+3*i+1] = triangles[15*gid+3*i+1];
+        //     // trianglesRender[3*beforeMe+3*i+2] = triangles[15*gid+3*i+2];
+        //     trianglesRender[15*gid+3*i+0] = triangles[15*gid+3*i+0];
+        //     trianglesRender[15*gid+3*i+1] = triangles[15*gid+3*i+1];
+        //     trianglesRender[15*gid+3*i+2] = triangles[15*gid+3*i+2];
+        // }
+        
+        trianglesRender[45*gid+0] = triangles[45*gid+0];
+        trianglesRender[45*gid+1] = triangles[45*gid+1];
+        trianglesRender[45*gid+2] = triangles[45*gid+2];
 
     }
 
@@ -715,10 +1096,9 @@ p {
         float3 myPos = pos[gid].xyz;
         float3 myVel = vel[gid].xyz;
 
-        // wall weight function
         float3 center         = float3(0.0);
         float3 boxSize        = float3(viewW/2-pRadius, viewH/2-pRadius, viewD/2-pRadius);
-
+        
         float3 xLocal = myPos - center;
         float3 contactPointLocal = min(boxSize, max(-boxSize, xLocal));
         float3 contactPoint = contactPointLocal + center;
@@ -737,14 +1117,19 @@ p {
 
 </script>
 
+<script type="text/javascript" src="/socket.io/socket.io.js"></script> 
+<!--The above library(/socket.io/socket.io.js) will be generated by socket.io module of server -->
+<script type="text/javascript" src="http://code.jquery.com/jquery-1.10.2.min.js"></script>
+
 <script type="text/javascript" src="Util/dat.gui.js"></script>
 <script src="Util/sampler.js"></script>
 <script src="Util/shader.js"></script>
 <script src="Util/J3DIMath.js"></script>
-<script src="SimCL.js"></script>
 
 <script src="Controller.js"></script>
 <script src="InitSim.js"></script>
+<script src="MarchingCubes.js"></script>
+<script src="SimCL.js"></script>
 <script src="SimJS.js"></script>
 <script src="DrawGL.js"></script>
 <script src="DrawJS.js"></script>
@@ -752,23 +1137,47 @@ p {
 </head>
 
 <body onload="onLoad()" bgColor="#202020">
-<div style="position:absolute; left:0px; top:0px">
-    <div id="sim" class="info" style="position:absolute; width: 0px;"></div>
-    <div id="sms" class="info" style="position:absolute; width: 0px;"></div>
-    <div id="drw" class="info" style="position:absolute; width: 0px;"></div>
-    <div id="dms" class="info" style="position:absolute; width: 0px;"></div>
+    <!-- <div style="position:absolute; left:0px; top:0px">
+        <div id="sim" class="info" style="position:absolute; width: 0px;"></div>
+        <div id="sms" class="info" style="position:absolute; width: 0px;"></div>
+        <div id="drw" class="info" style="position:absolute; width: 0px;"></div>
+        <div id="dms" class="info" style="position:absolute; width: 0px;"></div>
 
-</div>
+    </div> -->
+    
+    <div id='my-gui-container'></div>
 
-<div id='my-gui-container'></div>
+    <!-- canvas must be square since simulator works in normalized device coordinates -->
+    <canvas id="canvas2D" style="z-index: -1; position:absolute; left:300px; top:0px;"></canvas>
+    <canvas id="canvas3D" style="z-index: -1; position:absolute; left:300px; top:0px;"></canvas>
+    
+    <div id='stats'>
+        <h2>Default settings</h2>
+        <p>OpenCL device: CPU</p>
+    </div>
 
-<!-- canvas must be square since simulator works in normalized device coordinates -->
-<canvas id="canvas2D" style="z-index: -1; position:absolute; left:300px; top:0px;"></canvas>
-<canvas id="canvas3D" style="z-index: -1; position:absolute; left:300px; top:0px;"></canvas>
+    <div id="output"></div>
+    <form>
+                 
+        <!-- <input type="text" id="message" /> text form to send data to the server -->
+        <!-- <input id="submit" type="button" value="Send data to Server"> -->
+        <div id="content"></div> <!--This is where the data from the server is added-->
+     
+    </form>
 
-<div id='stats'>
-    <h2>Default settings</h2>
-    <p>OpenCL device: CPU</p>
-</div>
+    <script type="text/javascript">
+                var socket = io.connect("/"); 
+                
+                $(function(){
+                    $('#submit').click(function(){ /*listening to the button click using Jquery listener*/
+                        
+                        var data = document.getElementById("output").innerHTML;
+                        socket.send(data);
+     
+                    });
+                });
+     
+    </script>
+    
 </body>
 </html>

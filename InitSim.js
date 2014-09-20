@@ -117,9 +117,9 @@ function InitTwoCubes() {
 
     for (var j = -kViewHeight/2; j < kViewHeight/2; j+=kCellSize/2)
     {
-        for (var i = -kViewWidth/2; i < 0; i+=kCellSize/2)
+        for (var i = 0; i < kViewWidth/2; i+=kCellSize/2)    
         {
-            for (var k = 0; k < kViewDepth/2; k+=kCellSize/2)
+            for (var k = -kViewDepth/2; k < 0; k+=kCellSize/2)
             {
                 if (count < kParticleCount/3)
                 {
@@ -141,9 +141,9 @@ function InitTwoCubes() {
 
     for (var j = -kViewHeight/2; j < kViewHeight/2; j+=kCellSize/2)
     {
-        for (var i = 0; i < kViewWidth/2; i+=kCellSize/2)    
+        for (var i = -kViewWidth/2; i < 0; i+=kCellSize/2)
         {
-            for (var k = -kViewDepth/2; k < 0; k+=kCellSize/2)
+            for (var k = 0; k < kViewDepth/2; k+=kCellSize/2)
             {
                 if (count < kParticleCount)
                 {
@@ -166,7 +166,6 @@ function InitTwoCubes() {
 }
 
 function InitBallDrop() {
-    var count = 0;
 
     var count = 0;
 

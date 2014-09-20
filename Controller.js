@@ -5,14 +5,14 @@ var WINH                = 800;          // drawing canvas height
 
 var kScreenWidth = WINW;
 var kScreenHeight = WINH;
-var kViewWidth = 5;
+var kViewWidth = 4.0;
 var kViewHeight = kScreenHeight*kViewWidth/kScreenWidth;
-var kViewDepth = 5;
+var kViewDepth = 4.0;
 
 var kPi = 3.1415926535;
-var kParticleCount = 4096;
+var kParticleCount = 2048;
 
-var kRestDensity = 90.0;
+var kRestDensity = 40.0;
 var kStiffness = 0.08;
 var kNearStiffness = 0.1;
 var kSurfaceTension = 0.0008;
@@ -48,21 +48,24 @@ var mass = 1.0;
 
 var INNER_FLOPS         = 25;           // number of flops in inner loop of simulation
 
-var SAMPLEPERIOD        = 10;           // calculate fps and sim/draw times over this many frames
+var SAMPLEPERIOD        = 20;           // calculate fps and sim/draw times over this many frames
 var DISPLAYPERIOD       = 400;          // msecs between display updates of fps and sim/draw times
 
 var POS_ATTRIB_SIZE     = 4;            // xyzm, xyzm, xyzm, ...
 var VEL_ATTRIB_SIZE     = 4;            // vx, vy, vz, unused, vx, vy, vz, unused, ...
 var CUBE_ATTRIB_SIZE    = 3;            // xyz, xyz, ...
-
+var TRI_ATTRIB_SIZE     = 3;    
 //////////////////////////////////////
 
 // voxelization variables
-
 var Nx = kGridWidth;
 var Ny = kGridHeight;
 var Nz = kGridDepth;
 var voxel = Nx * Ny * Nz;
+
+var isovalue = 80.0;
+
+var frameCounter = 0;
 
 function voxelInfo() {
     console.log("kParticleCount = " + kParticleCount);
@@ -90,6 +93,16 @@ var GRIDCELLIndex_ATTRIB_SIZE        = 1;
 var GRIDCELLIndexFixedUP_ATTRIB_SIZE = 1;
 var NEIGHBOR_MAP_ATTRIB_SIZE         = kMaxNeighbourCount;
 
+// each element is float4 (p0, p1, p2, val)
+// there are 8 vertices recorded in each voxel
+var GRIDCELLVERT_ATTRIB_SIZE         = 32;
+var GRIDCELLCUBEINDEX_ATTRIB_SIZE    = 1;
+
+var GRIDTRIANGLE_ATTRIB_SIZE         = 45;
+var GRIDTRIANGLE_RENDER_ATTRIB_SIZE  = 45;
+
+var GRIDTRIANGLECOUNT_ATTRIB_SIZE    = 1;
+
 var DENSITY_ATTRIB_SIZE              = 1;
 var PRESSURE_ATTRIB_SIZE             = 1;
 
@@ -108,6 +121,8 @@ var FP64_ENABLED        = true;
 var EPSSQR              = 50;           // softening factor
 var DT                  = 0.005;        // time delta
 
+var canvas;
+
 function UserData() {
 
 //////////////////////////////////////
@@ -118,23 +133,28 @@ function UserData() {
     this.prevPosition = null;
     this.relaxedPos = null;
     this.sortedPrevPos = null;
-
     this.particleIndex  = null;
     this.velocity       = null;
     this.sortedVelocity = null;
-    
-    this.acceleration   = null;
-    
+    this.acceleration   = null;    
     this.gridCellIndex  = null;
     this.gridCellIndexFixedUp = null;
-
-    this.neighborMap    = null;
-    
+    this.neighborMap    = null;    
     this.density        = null;
-    this.nearDensity    = null;
-    
+    this.nearDensity    = null;    
     this.pressure       = null;
     this.nearPressure   = null;
+
+//////////////////////////////////////
+
+// Marching Cubes voxel information variables
+    this.MCgrid = null;
+    this.MCcubeindex = null;
+    this.edgeTable = null;
+    this.triTable = null;
+    this.triangles = null;
+    this.trianglesPack = null;
+    this.triCount = null;
 
 //////////////////////////////////////
 
@@ -150,24 +170,18 @@ function UserData() {
     // this.prevPositionVBO  = null; 
     // this.relaxedPosVBO      = null;
     // this.sortedPrevPosVBO   = null;
-
     // this.velocityVBO        = null;
-    
     // this.neighborMapVBO     = null;
-    
     // this.densityVBO         = null;
     // this.neardensityVBO     = null;
-    
     // this.pressureVBO        = null;
     // this.nearpressureVBO    = null;
 
 // SPH shader variables
     this.particleProgram = null;
-    this.PosLoc          = null;
+    // this.PosLoc          = null;
     // this.relaxedPosLoc   = null;
-
     // this.VelLoc          = null;
-    
     // this.neighborMapLoc  = null;
     
     this.densityLoc      = null;
@@ -179,8 +193,18 @@ function UserData() {
 // SPH mvp matrix related variables
     this.mvpParticleLoc      = null; // location of mvp matrix in particle vertex shader    
 
-//////////////////////////////////////
+// MC shader variables
+    this.triangleProgram = null;
 
+// Marching Cubes shared buffers
+    this.trianglesVBO          = null;
+    this.triangleVertices      = null;
+
+// Marching Cubes matrix related variables
+    this.mvpTriangleLoc      = null;
+    this.ntri           = null;
+//////////////////////////////////////
+    
     this.mvpPointLoc    = null;         // location of mvp matrix in point vertex shader
     this.mvpCubeLoc     = null;         // location of mvp matrix in cube vertex shader
     this.npCubeLoc      = null;
@@ -189,17 +213,13 @@ function UserData() {
     // this.cubeVertices   = null;         // cube vertex array
     // this.cubeIndices    = null;         // cube indice array
     this.cubeLoc        = null;         // location of cube attribute in vertex shader
-
     this.cubeFacesVertices = null;
     this.cubeFacesIndices  = null;
     this.cubeFacesNormals = null;
-
     // this.pointProgram   = null;         // GL program with point shaders
     this.cubeProgram    = null;         // GL program with cube shaders
-
     // this.cubeVertexVBO  = null;
     // this.cubeIndiceVBO  = null;
-
     this.cubeFacesVertexVBO = null;
     this.cubeFacesIndexVBO = null;
     this.cubeFacesNormalVBO = null;
@@ -208,7 +228,6 @@ function UserData() {
     this.mvpplaneLoc    = null;
     this.npplaneLoc     = null;
     this.normalPlaneLoc = null;
-
     this.planeFacesVertices = null;
     this.planeFacesIndices = null;
     this.planeFacesNormals = null;
@@ -226,6 +245,8 @@ function UserData() {
     this.simMode        = null;
     this.drawMode       = null;
     this.isSimRunning   = true;
+
+    this.writeFrame     = false;
 
     this.initMode       = "Break Dam";
 
@@ -248,6 +269,7 @@ function Console() {
     this.CLSimMode = true;
     this.GLDrawMode = true;
     this.StartSim = true;
+    this.WriteFrame = false;
     this.Start3D = true;
     this.GPU = true;
     this.FrameRate = "";
@@ -276,6 +298,7 @@ var gridsize;
 var jssimmode;
 var jsdrawmode;
 var startsim;
+var writeFrame;
 var start3d;
 var simOption;
 
@@ -297,6 +320,11 @@ function onLoad() {
     startsim = gui.add(setconsole, 'StartSim').listen();
     startsim.onChange(function(value){
         userData.isSimRunning = value;
+    });
+
+    writeFrame = gui.add(setconsole, 'WriteFrame').listen();
+    writeFrame.onChange(function(value) {
+        userData.writeFrame = value;
     });
     
     simOption = gui.add(setconsole, 'SimOption', [ '', 'Break Dam', 'Two Cube', 'Drop Cube', 'Drop Ball' ]).listen();
@@ -360,8 +388,7 @@ function onLoad() {
 
 //////////////////////////////////////
 
-// SPH data allocation
-
+    // SPH data allocation
     userData.position             = new Float32Array(kParticleCount * POSITION_ATTRIB_SIZE);
     userData.sortedPosition       = new Float32Array(kParticleCount * POSITION_ATTRIB_SIZE);
     userData.prevPosition         = new Float32Array(kParticleCount * POSITION_ATTRIB_SIZE);
@@ -377,6 +404,32 @@ function onLoad() {
     userData.particleIndex        = new Int32Array(kParticleCount * PARTICLEIndex_ATTRIB_SIZE);
     userData.gridCellIndex        = new Int32Array(voxel * GRIDCELLIndex_ATTRIB_SIZE);
     userData.gridCellIndexFixedUp = new Int32Array(voxel * GRIDCELLIndexFixedUP_ATTRIB_SIZE);
+
+    // each item is a 32 bit (4 bytes) floating point number
+    // there are 8 items in each voxel, each item is a float4
+    // float4 consists of (vert.x, vert.y, vert.z, val)
+    userData.MCgrid               = new Float32Array(voxel * GRIDCELLVERT_ATTRIB_SIZE);
+    // MCgridbufferSize = voxel * GRIDCELLVERT_ATTRIB_SIZE * Float32Array.BYTES_PER_ELEMENT;
+    InitGridInfo(Nx, Ny, Nz, -kViewWidth/2, -kViewHeight/2, -kViewDepth/2, kCellSize);
+    // printMCGridInfo(Nx, Ny, Nz);
+    
+    // each item is a 8 bit (1 bytes) integer
+    userData.MCcubeindex          = new Int32Array(voxel * GRIDCELLCUBEINDEX_ATTRIB_SIZE);
+
+    // edge table
+    userData.edgeTable = new Uint16Array(256);
+    initEdgeTable();
+    // printEdgeTable();
+    
+    // triangle table
+    userData.triTable = new Int8Array(256 * 16);
+    initTriTable();
+    // printTriTable();
+
+    userData.triangles = new Float32Array(voxel * GRIDTRIANGLE_ATTRIB_SIZE);
+    // use trianglesRender to pack all vertices together, leaving no void in the middle of the array
+    // userData.trianglesPack = new Float32Array(voxel * GRIDTRIANGLE_ATTRIB_SIZE);
+    userData.triCount = new Int8Array(voxel * GRIDTRIANGLECOUNT_ATTRIB_SIZE);
 
 // 2014-05-04: neighbor map added    
     userData.neighborMap          = new Int32Array(kParticleCount * kMaxNeighbourCount);
@@ -404,6 +457,16 @@ function onLoad() {
     SetSimMode(CL_SIM_MODE);
     SetDrawMode(GL_DRAW_MODE);
 
+    document.addEventListener('keydown', function(event) {
+    if (event.keyCode == 80) {
+        // alert('screenshot saved');
+        
+        var imgData;
+        imgData = canvas.toDataURL();
+        window.open(imgData, "toDataURL() image", "WINW = 800, WINH = 800");
+
+    }}, true);
+    
     setInterval( MainLoop, 0 );
     setInterval( function() { userData.fpsSampler.display(); }, DISPLAYPERIOD);
     setInterval( function() { userData.simSampler.display(); }, DISPLAYPERIOD);
@@ -454,11 +517,14 @@ function InitParticleState() {
 
 function MainLoop() {
 
+    // if (frameCounter > 1)
+        // userData.isSimRunning = false;
+    
     userData.drawSampler.endFrame();   
     userData.fpsSampler.markFrame();   
 
     userData.simSampler.startFrame();
-
+    
     switch (userData.initMode) {
         case "Break Dam":
             console.log("initMode set to " + userData.initMode);
@@ -490,19 +556,62 @@ function MainLoop() {
         }
         else {
             SimulateCL(userData.cl);
+
+            if (userData.writeFrame)
+            {
+                if (frameCounter < 300)
+                {
+                    WriteFrame();
+                    console.log("frame " + frameCounter + "stored");
+                    frameCounter++;
+                }
+            }
         }
     }
 
+    // Marching Cubes computation
+    // March();
+
     userData.simSampler.endFrame();
     userData.drawSampler.startFrame();
+    
     Draw();
+}
+
+function WriteFrame() {
+    
+    var node = document.getElementById("output");
+    var posString = new String("");
+
+    var i;
+    for (i = 0; i < kParticleCount; i++)
+    {
+        var newPos = new String(userData.sortedPosition[4*i+0] + " "
+                              + userData.sortedPosition[4*i+1] + " " 
+                              + userData.sortedPosition[4*i+2] + "\n");
+        
+        // var newPos = new String("frameCounter = " + frameCounter + "\n");
+
+        posString += newPos;
+    }
+    
+    // node.innerHTML = posString;
+
+    var socket = io.connect("/");
+
+    // var data = document.getElementById("output").innerHTML;
+    // socket.send(node.innerHTML);
+    socket.send(posString);
+
 }
 
 function Draw() {
     if(userData.drawMode === JS_DRAW_MODE)
         DrawJS(userData.ctx);
     else
+    {
         DrawGL(userData.gl);
+    }
 }
 
 function SetSimMode(simMode) {

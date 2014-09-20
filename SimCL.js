@@ -11,6 +11,10 @@ var program_findNeighbors;
 var program_applyBodyForce;
 var program_advance;
 var program_pressure;
+var program_gridval;
+// var program_cubeindex;
+// var program_polygonisecube;
+// var program_packtriangles;
 var program_calcRelaxPos;
 var program_moveToRelaxPos;
 var program_resolveCollisions;
@@ -24,6 +28,10 @@ var kernel_findNeighbors;
 var kernel_applyBodyForce;
 var kernel_advance;
 var kernel_pressure;
+var kernel_gridval;
+// var kernel_cubeindex;
+// var kernel_polygonisecube;
+// var kernel_packtriangles;
 var kernel_calcRelaxPos;
 var kernel_moveToRelaxPos;
 var kernel_resolveCollisions;
@@ -51,6 +59,23 @@ var nearDensityBuffer;
 
 var pressureBuffer;
 var nearPressureBuffer;
+
+// marching cubes grid info buffer
+var mcgridBuffer;
+
+// marching cubes grid cube index buffer
+//  - each is an 8 bit integer
+//  - each bit is either 0, or 1
+//  - representing vertex's relationship with isolevel
+var mcgridcubeidxBuffer;
+
+// marching cubes edgeTable constant, and triTable constant
+var mcedgetablBuffer;
+var mctritableBuffer;
+
+// var mctrianglesBuffer;
+// var mctrianglesRenderBuffer;
+// var mctrianglesCountBuffer;
 
 var bufferSize = null;
 var SPHPosbufferSize = null;
@@ -217,6 +242,34 @@ function InitCL() {
                 return null;
             }
 
+            var kernelSource_gridval = getKernel("mc_kernel_gridval");
+            if (kernelSource_gridval === null)
+            {
+                console.log("No kernel named: " + "mc_kernel_gridval");
+                return null;
+            }
+
+            // var kernelSource_cubeindex = getKernel("mc_kernel_cubeindex");
+            // if (kernelSource_cubeindex === null)
+            // {
+            //     console.log("No kernel named: " + "mc_kernel_cubeindex");
+            //     return null;
+            // }
+
+            // var kernelSource_polygonisecube = getKernel("mc_kernel_polygonisecube");
+            // if (kernelSource_polygonisecube === null)
+            // {
+            //     console.log("No kernel named: " + "mc_kernel_polygonisecube");
+            //     return null;
+            // }
+
+            // var kernelSource_packtriangles = getKernel("mc_kernel_packtriangles");
+            // if (kernelSource_packtriangles === null)
+            // {
+            //     console.log("No kernel named: " + "mc_kernel_packtriangles");
+            //     return null;
+            // }
+
             var kernelSource_calcRelaxPos = getKernel("sph_kernel_calcRelaxPos");
             if (kernelSource_calcRelaxPos === null)
             {
@@ -249,6 +302,10 @@ function InitCL() {
             program_indexPostPass = context.createProgram(kernelSource_indexPostPass);
             program_findNeighbors = context.createProgram(kernelSource_findNeighbors);
             program_pressure = context.createProgram(kernelSource_pressure);
+            program_gridval = context.createProgram(kernelSource_gridval);
+            // program_cubeindex = context.createProgram(kernelSource_cubeindex);
+            // program_polygonisecube = context.createProgram(kernelSource_polygonisecube);
+            // program_packtriangles = context.createProgram(kernelSource_packtriangles);
             program_calcRelaxPos = context.createProgram(kernelSource_calcRelaxPos);
             program_moveToRelaxPos = context.createProgram(kernelSource_moveToRelaxPos);
             program_resolveCollisions = context.createProgram(kernelSource_resolveCollisions);
@@ -262,10 +319,14 @@ function InitCL() {
             program_indexPostPass.build([device]);
             program_findNeighbors.build([device]);
             program_pressure.build([device]);
+            program_gridval.build([device]);
+            // program_cubeindex.build([device]);
+            // program_polygonisecube.build([device]);
+            // program_packtriangles.build([device]);
             program_calcRelaxPos.build([device]);
             program_moveToRelaxPos.build([device]);
             program_resolveCollisions.build([device]);
-
+                           
             kernel_applyBodyForce = program_applyBodyForce.createKernel("sph_kernel_applyBodyForce");
             kernel_advance = program_advance.createKernel("sph_kernel_advance");
             kernel_hashParticles = program_hashParticles.createKernel("sph_kernel_hashparticles");
@@ -275,6 +336,10 @@ function InitCL() {
             kernel_indexPostPass = program_indexPostPass.createKernel("sph_kernel_indexPostPass");
             kernel_findNeighbors = program_findNeighbors.createKernel("sph_kernel_findNeighbors");
             kernel_pressure = program_pressure.createKernel("sph_kernel_pressure");
+            kernel_gridval = program_gridval.createKernel("mc_kernel_gridval");
+            // kernel_cubeindex = program_cubeindex.createKernel("mc_kernel_cubeindex");
+            // kernel_polygonisecube = program_polygonisecube.createKernel("mc_kernel_polygonisecube");
+            // kernel_packtriangles = program_packtriangles.createKernel("mc_kernel_packtriangles");
             kernel_calcRelaxPos = program_calcRelaxPos.createKernel("sph_kernel_calcRelaxPos");
             kernel_moveToRelaxPos = program_moveToRelaxPos.createKernel("sph_kernel_moveToRelaxPos");
             kernel_resolveCollisions = program_resolveCollisions.createKernel("sph_kernel_resolveCollisions");
@@ -293,6 +358,13 @@ function InitCL() {
         SPHDensitybufferSize = kParticleCount * DENSITY_ATTRIB_SIZE * Float32Array.BYTES_PER_ELEMENT;
         SPHPressurebufferSize = kParticleCount * PRESSURE_ATTRIB_SIZE * Float32Array.BYTES_PER_ELEMENT;
         SPHAccelerationbufferSize = kParticleCount * ACCELERATION_ATTRIB_SIZE * Float32Array.BYTES_PER_ELEMENT;
+        MCgridbufferSize = voxel * GRIDCELLVERT_ATTRIB_SIZE * Float32Array.BYTES_PER_ELEMENT;
+        // MCgridcubeindexSize = voxel * GRIDCELLCUBEINDEX_ATTRIB_SIZE * Int8Array.BYTES_PER_ELEMENT;
+        // MCedgetableSize = 256 * Uint16Array.BYTES_PER_ELEMENT;
+        // MCtritableSize = 256 * 16 * Int8Array.BYTES_PER_ELEMENT;
+        // MCtrianglesSize = voxel * GRIDTRIANGLE_ATTRIB_SIZE * Float32Array.BYTES_PER_ELEMENT;
+        // MCtrianglesRenderSize = voxel * GRIDTRIANGLE_ATTRIB_SIZE * Float32Array.BYTES_PER_ELEMENT;
+        // MCtrianglecountSize = voxel * GRIDTRIANGLECOUNT_ATTRIB_SIZE * Int8Array.BYTES_PER_ELEMENT;
 
         if (userData.isGLCLshared) 
         {
@@ -303,9 +375,16 @@ function InitCL() {
             PositionBuffer = context.createFromGLBuffer(cl.MEM_READ_WRITE, userData.positionVBO);
             if (PositionBuffer === null) 
             {
-                console.log("Failed to allocated device memory");
+                console.log("Failed to allocated device memory: PositionBuffer");
                 return null;
             }
+
+            // mctrianglesRenderBuffer = context.createFromGLBuffer(cl.MEM_READ_WRITE, userData.trianglesVBO);
+            // if (mctrianglesRenderBuffer === null) {
+            //     console.log("Failed to allocate device memory: mctrianglesRenderBuffer");
+            //     return null;
+            // }
+
         }
 
         try {
@@ -392,7 +471,43 @@ function InitCL() {
                 console.log("Failed to allocate device memory: nearPressureBuffer");
                 return null;
             }
+
+            mcgridBuffer = context.createBuffer(cl.MEM_READ_WRITE, MCgridbufferSize, userData.MCgrid);
+            if (mcgridBuffer === null) {
+                console.log("Failed to allocate device memory: mcgridBuffer");
+                return null;
+            }
+
+            // mcgridcubeidxBuffer = context.createBuffer(cl.MEM_READ_WRITE, MCgridcubeindexSize, userData.MCcubeindex);
+            // if (mcgridcubeidxBuffer === null) {
+            //     console.log("Failed to allocate device memory: mcgridcubeidxBuffer");
+            //     return null;
+            // }
             
+            // mcedgetablBuffer = context.createBuffer(cl.MEM_READ_WRITE, MCedgetableSize, userData.edgeTable);
+            // if (mcedgetablBuffer === null) {
+            //     console.log("Failed to allocate device memory: mcedgetablBuffer");
+            //     return null;
+            // }
+
+            // mctritableBuffer = context.createBuffer(cl.MEM_READ_WRITE, MCtritableSize, userData.triTable);
+            // if (mctritableBuffer === null) {
+            //     console.log("Failed to allocate device memory: mctritableBuffer");
+            //     return null;
+            // }
+
+            // mctrianglesBuffer = context.createBuffer(cl.MEM_READ_WRITE, MCtrianglesSize, userData.triangles);
+            // if (mctrianglesBuffer === null) {
+            //     console.log("Failed to allocate device memory: mctrianglesBuffer");
+            //     return null;
+            // }
+
+            // mctrianglesCountBuffer = context.createBuffer(cl.MEM_READ_WRITE, MCtrianglecountSize, userData.triCount);
+            // if (mctrianglesCountBuffer === null) {
+            //     console.log("Failed to allocate device memory: mctrianglesCountBuffer");
+            //     return null;
+            // }
+
         } catch (e) {
             console.log(e.message);
             return null;
@@ -402,13 +517,15 @@ function InitCL() {
         // SPH Initial load of position and particleIdx data
         if (userData.isGLCLshared) 
         {            
-            queue.enqueueAcquireGLObjects([PositionBuffer]);        
+            queue.enqueueAcquireGLObjects([PositionBuffer]);
+            // queue.enqueueAcquireGLObjects([mctrianglesRenderBuffer]);
         }
         //////////////////////////////////////
 
         try 
         {
             queue.enqueueWriteBuffer(PositionBuffer, true, 0, SPHPosbufferSize, userData.position);
+            // queue.enqueueWriteBuffer(mctrianglesRenderBuffer, true, 0, MCtrianglesRenderSize, userData.trianglesRender);
         
         } catch (e)
         {
@@ -419,6 +536,7 @@ function InitCL() {
         if (userData.isGLCLshared) 
         {
             queue.enqueueReleaseGLObjects([PositionBuffer]);
+            // queue.enqueueReleaseGLObjects([mctrianglesRenderBuffer]);
         }
 
         queue.finish();
@@ -455,6 +573,10 @@ function InitCL() {
         console.log("kernel_indexPostPass: " + kernel_indexPostPass.getInfo(cl.KERNEL_FUNCTION_NAME));
         console.log("kernel_findNeighbors: " + kernel_findNeighbors.getInfo(cl.KERNEL_FUNCTION_NAME));
         console.log("kernel_pressure: " + kernel_pressure.getInfo(cl.KERNEL_FUNCTION_NAME));
+        console.log("kernel_gridval: " + kernel_gridval.getInfo(cl.KERNEL_FUNCTION_NAME));
+        // console.log("kernel_cubeindex: " + kernel_cubeindex.getInfo(cl.KERNEL_FUNCTION_NAME));
+        // console.log("kernel_polygonisecube: " + kernel_polygonisecube.getInfo(cl.KERNEL_FUNCTION_NAME));
+        // console.log("kernel_packtriangles: " + kernel_packtriangles.getInfo(cl.KERNEL_FUNCTION_NAME));
         console.log("kernel_calcRelaxPos: " + kernel_calcRelaxPos.getInfo(cl.KERNEL_FUNCTION_NAME));
         console.log("kernel_moveToRelaxPos: " + kernel_moveToRelaxPos.getInfo(cl.KERNEL_FUNCTION_NAME));
         console.log("kernel_resolveCollisions: " + kernel_resolveCollisions.getInfo(cl.KERNEL_FUNCTION_NAME));
@@ -475,6 +597,7 @@ function SimulateCL(cl) {
         if (userData.isGLCLshared) {
             try {
                 queue.enqueueAcquireGLObjects([PositionBuffer]);
+                // queue.enqueueAcquireGLObjects([mctrianglesRenderBuffer]);
             } catch (e) {
                 console.error("SPH demo failed, Message: " + e.message);
             }
@@ -624,13 +747,14 @@ function SimulateCL(cl) {
             kernel_pressure.setArg(5, new Float32Array([kStiffness]));
             kernel_pressure.setArg(6, new Float32Array([kNearStiffness]));
             kernel_pressure.setArg(7, new Float32Array([kRestDensity]));
-            kernel_pressure.setArg(8, PositionBuffer);
-            kernel_pressure.setArg(9, neighborMapBuffer);
-            kernel_pressure.setArg(10, densityBuffer);
-            kernel_pressure.setArg(11, nearDensityBuffer);
-            kernel_pressure.setArg(12, pressureBuffer);
-            kernel_pressure.setArg(13, nearPressureBuffer); 
-
+            kernel_pressure.setArg(8, new Float32Array([kEpsilon]));
+            kernel_pressure.setArg(9, PositionBuffer);
+            kernel_pressure.setArg(10, neighborMapBuffer);
+            kernel_pressure.setArg(11, densityBuffer);
+            kernel_pressure.setArg(12, nearDensityBuffer);
+            kernel_pressure.setArg(13, pressureBuffer);
+            kernel_pressure.setArg(14, nearPressureBuffer); 
+            
             queue.enqueueNDRangeKernel(kernel_pressure, globalWorkSize.length, [], globalWorkSize, []);
             queue.flush();
 
@@ -638,6 +762,69 @@ function SimulateCL(cl) {
             console.log("SPH kernel_pressure failed, Message: " + e.message);
             return null;
         }
+
+        // try {
+        //     kernel_gridval.setArg(0, new Int32Array([kParticleCount]));
+        //     kernel_gridval.setArg(1, new Float32Array([mass]));
+        //     kernel_gridval.setArg(2, new Float32Array([kCellSize]));
+        //     kernel_gridval.setArg(3, new Float32Array([kNorm]));
+        //     kernel_gridval.setArg(4, new Float32Array([kEpsilon]));
+        //     kernel_gridval.setArg(5, PositionBuffer);
+        //     kernel_gridval.setArg(6, mcgridBuffer);
+
+        //     queue.enqueueNDRangeKernel(kernel_gridval, globalWorkSize_index.length, [], globalWorkSize_index, []);
+        //     queue.flush();
+
+        // } catch (e) {
+        //     console.log("MC kernel_gridval failed, Message: " + e.message);
+        //     return null;
+        // }
+        
+        // try {
+            
+        //     kernel_cubeindex.setArg(0, new Float32Array([isovalue]));
+        //     kernel_cubeindex.setArg(1, mcgridBuffer);
+        //     kernel_cubeindex.setArg(2, mcgridcubeidxBuffer);
+
+        //     queue.enqueueNDRangeKernel(kernel_cubeindex, globalWorkSize_index.length, [], globalWorkSize_index, []);
+        //     queue.flush();
+
+        // } catch (e) {
+        //     console.log("MC kernel_cubeindex failed, Message: " + e.message);
+        //     return null;
+        // }
+        
+        // try {
+            
+        //     kernel_polygonisecube.setArg(0, mcedgetablBuffer);
+        //     kernel_polygonisecube.setArg(1, mctritableBuffer);
+        //     kernel_polygonisecube.setArg(2, mcgridcubeidxBuffer);
+        //     kernel_polygonisecube.setArg(3, mcgridBuffer);
+        //     kernel_polygonisecube.setArg(4, new Float32Array([isovalue]));
+        //     kernel_polygonisecube.setArg(5, mctrianglesBuffer);
+        //     kernel_polygonisecube.setArg(6, mctrianglesCountBuffer);
+
+        //     queue.enqueueNDRangeKernel(kernel_polygonisecube, globalWorkSize_index.length, [], globalWorkSize_index, []);
+        //     queue.flush();
+            
+        // } catch (e) {
+        //     console.log("MC kernel_polygonisecube failed, Message: " + e.message);
+        //     return null;
+        // }
+        
+        // try {
+            
+        //     kernel_packtriangles.setArg(0, mctrianglesBuffer);
+        //     kernel_packtriangles.setArg(1, mctrianglesCountBuffer);
+        //     kernel_packtriangles.setArg(2, mctrianglesRenderBuffer);
+
+        //     queue.enqueueNDRangeKernel(kernel_packtriangles, globalWorkSize_index.length, [], globalWorkSize_index, []);
+        //     queue.flush();
+            
+        // } catch (e) {
+        //     console.log("MC kernel_packtriangles failed, Message: " + e.message);
+        //     return null;
+        // }
 
         try {
             kernel_calcRelaxPos.setArg(0, new Float32Array([mass]));
@@ -666,7 +853,7 @@ function SimulateCL(cl) {
             console.log("SPH kernel_calcRelaxPos failed, Message: " + e.message);
             return null;
         }
-
+        
         try {
             kernel_moveToRelaxPos.setArg(0, new Float32Array([kDt]));
             kernel_moveToRelaxPos.setArg(1, PositionBuffer);
@@ -704,10 +891,11 @@ function SimulateCL(cl) {
         } catch (e) {
             console.error("SPH Failed, Message: "+ e.message);
         }
-
+        
         try {
             if (userData.isGLCLshared) {
                 queue.enqueueReleaseGLObjects([PositionBuffer]);
+                // queue.enqueueReleaseGLObjects([mctrianglesRenderBuffer]);
             }
         } catch (e) {
             console.log("SPH demo failed, Message: " + e.message);
@@ -716,15 +904,21 @@ function SimulateCL(cl) {
         try {
             if (!userData.isGLCLshared || userData.drawMode === JS_DRAW_MODE) {
                 queue.enqueueReadBuffer(PositionBuffer, true, 0, SPHPosbufferSize, userData.position);
+                // queue.enqueueReadBuffer(mctrianglesRenderBuffer, true, 0, MCtrianglesRenderSize, userData.trianglesRender);
             }
         } catch (e) {
             console.log("SPH demo failed, Message: " + e.message);
         }
-
+        
         // queue.enqueueReadBuffer(neighborMapBuffer, true, 0, SPHNeighborbufferSize, userData.neighborMap);
-        // queue.enqueueReadBuffer(SortedPositionBuffer, true, 0, SPHPosbufferSize, userData.sortedPosition);
+        queue.enqueueReadBuffer(PositionBuffer, true, 0, SPHPosbufferSize, userData.sortedPosition);
         // queue.enqueueReadBuffer(particleIndex, true, 0, SPHIdxbufferSize, userData.particleIndex);
-
+        // queue.enqueueReadBuffer(mcgridBuffer, true, 0, MCgridbufferSize, userData.MCgrid);
+        // queue.enqueueReadBuffer(densityBuffer, true, 0, SPHDensitybufferSize, userData.density);
+        // queue.enqueueReadBuffer(mcgridcubeidxBuffer, true, 0, MCgridcubeindexSize, userData.MCcubeindex);
+        // queue.enqueueReadBuffer(mctrianglesCountBuffer, true, 0, MCtrianglecountSize, userData.triCount);
+        // queue.enqueueReadBuffer(mctrianglesBuffer, true, 0, MCtrianglesSize, userData.triangles);
+        
     } catch (e) {
         console.log("SPH demo failed, Message: " + e.message);
     }
@@ -759,8 +953,8 @@ function GetWorkGroupSize() {
             console.error("No devices available");
             return null;
         }
-        var device = devices[1];
-
+        var device = devices[0];
+        
         workGroupSize = device.getInfo(cl.DEVICE_MAX_WORK_GROUP_SIZE);
         globalWorkSize[0] = device.getInfo(cl.DEVICE_MAX_COMPUTE_UNITS);
         // temp = device.getInfo(webcl.DEVICE_NAME);
@@ -782,6 +976,7 @@ function reset() {
     // set position and velocity to the initial values after the new initialization
     try {
         queue.enqueueWriteBuffer(PositionBuffer, true, 0, SPHPosbufferSize, userData.position);
+        // queue.enqueueWriteBuffer(mctrianglesRenderBuffer, true, 0, MCtrianglesRenderSize, userData.trianglesRender);
     } catch (e)
     {
         console.error("SPH demo failed, Message: " + e.message);
@@ -791,8 +986,9 @@ function reset() {
     if (userData.isGLCLshared) 
     {
         queue.enqueueReleaseGLObjects([PositionBuffer]);
+        // queue.enqueueReleaseGLObjects([mctrianglesRenderBuffer]);
     }
-
+    
     queue.finish();
 
     try {
@@ -802,6 +998,7 @@ function reset() {
             console.log("Failed to allocate device memory: VelosityBuffer");
             return null;
         }
+
     } catch (e) 
     {
         console.log(e.message);

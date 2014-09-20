@@ -100,7 +100,7 @@ function computeDensityPressureALL(mass, pressureK, restDensity, radius) {
         var posX = userData.prevPosition[4*particleCount + 0];
         var posY = userData.prevPosition[4*particleCount + 1];
         var posZ = userData.prevPosition[4*particleCount + 2];
-
+        
         var neighborIdx;
         var dens = 0.0;
         var neighborPosX, neighborPosY, neighborPosZ; 
@@ -116,7 +116,7 @@ function computeDensityPressureALL(mass, pressureK, restDensity, radius) {
 
             dens += mass * wDefault(weightDefaultConstant, radius, posX-neighborPosX, posY-neighborPosY, posZ-neighborPosZ);
         }
-
+        
         userData.densityDEBUG[particleCount] = dens;
         
         userData.pressureDEBUG[particleCount] = pressureK * (dens - restDensity);
@@ -309,15 +309,15 @@ function InitJS(canvasName) {
     
     return ctx;
 }
- 
+
 function DrawJS(ctx) {
     if(ctx === null)
         return;
         
     // console.log("Painting on canvas");
 
-    ctx.fillStyle = 'rgba(0,0,0,1)';
-    ctx.fillRect(0, 0, WINW, WINH);
+    // ctx.fillStyle = 'rgba(0,0,0,1)';
+    // ctx.fillRect(0, 0, WINW, WINH);
         
     // ctx.fillStyle = 'rgba(255,255,0,1)';
 
@@ -328,7 +328,7 @@ function DrawJS(ctx) {
     //     console.error("gridCellIdxFixedUp[" + i + "]           -- " + gridCellIdxFixedUp);
     // }
     
-    var radius = kH;
+    // var radius = kH;
     // particleNeighbors(radius);
     // computeDensityPressureALL(particleMass, pressureK, restDensity, radius);
 
@@ -336,12 +336,18 @@ function DrawJS(ctx) {
     // computeDensityPressure(particleMass, pressureK, restDensity, DEBUG_Index, radius);
     // computeAcceleration(particleMass, viscosity, DEBUG_Index, radius);
     
-    for (var i=0; i < kParticleCount; i++)  {
+    // for (var i=0; i < kParticleCount; i++)  {
         
-        var x = userData.position[4*i+0];
-        var y = userData.position[4*i+1];
-        var z = userData.position[4*i+2];
-        var w = userData.position[4*i+3];
+        // var x = userData.position[4*i+0];
+        // var y = userData.position[4*i+1];
+        // var z = userData.position[4*i+2];
+        // var w = userData.position[4*i+3];
+
+        // if (w === 70)
+        // {
+        //     var densityp = userData.density[i];
+        //     console.log("particle: " + i + " in voxel " + w + "density: " + densityp);
+        // }
 
         // console.error("WebCL: particle " + i + " is in voxel " + w);
         
@@ -430,48 +436,39 @@ function DrawJS(ctx) {
         // }
         
         // use GL orientation
-        y = -y;
+    //     y = -y;
 
-        var px = (WINW + (x * WINW))/2;
-        var py = (WINH + (y * WINH))/2;
-        var pz = (WINH + (z * WINH))/2;
-        var pr = 4 * (pz/WINH);
+    //     var px = (WINW + (x * WINW))/2;
+    //     var py = (WINH + (y * WINH))/2;
+    //     var pz = (WINH + (z * WINH))/2;
+    //     var pr = 4 * (pz/WINH);
         
-        if(pr < 0) pr = 1;
-        if(pr > 4) pr = 4;
+    //     if(pr < 0) pr = 1;
+    //     if(pr > 4) pr = 4;
         
-        // sy = -sy;
-        
-        // var px = (WINW + (sx * WINW))/2;
-        // var py = (WINH + (sy * WINH))/2;
-        // var pz = (WINH + (sz * WINH))/2;
-        // var pr = 4 * (pz/WINH);
-        
-        // if(pr < 0) pr = 1;
-        // if(pr > 4) pr = 4;
-        
-        // var voxelID = userData.particleIndex[2*i];
-        // var globalID = userData.particleIndex[2*i+1];
-        
-        // if (i === 5) {
-        // console.error("( x,  y,  z,  w)        -- " + "(" + x + "," + y + "," + z + "," + w + ")");
-            // console.error("(voxelID, globalID)     -- " + "(" + voxelID + "," + globalID + ")");
-        // console.error("(sx, sy, sz, sw)        -- " + "(" + sx  + "," + sy  + "," + sz  + "," + sw  + ")");
-            // console.error("(svx, svy, svz, svw)    -- " + "(" + svx + "," + svy + "," + svz + "," + svw + ")");
+    //     ctx.fillStyle = 'rgba('+ w + ',' + i + ', 0, 1)';
 
-        // }
-        // console.error("(voxel, global) -- " + "(" + voxelID + "," + globalID + ")");
-        // console.error("(voxel, global)           -- " + "(" + sw + ", " + i + ")");
-        // ctx.fillStyle = 'rgba('+ voxelID + ',' + globalID + ', 1, 1)';
-        // ctx.fillStyle = 'rgba('+ voxelID + ',' + globalID + ', 0, 1)';
-        // ctx.fillStyle = 'rgba('+ sw + ',' + i + ', 0, 1)';
-        ctx.fillStyle = 'rgba('+ w + ',' + i + ', 0, 1)';
+    //     ctx.beginPath();
+    //     ctx.arc(px, py, pr, 0, Math.PI*2, true);
+    //     ctx.closePath();
+    //     ctx.fill(); 
 
-        ctx.beginPath();
-        ctx.arc(px, py, pr, 0, Math.PI*2, true);
-        ctx.closePath();
-        ctx.fill(); 
+    //     ctx.fillRect(px, py, 1, 1);
+    // }
 
-        ctx.fillRect(px, py, 1, 1);
-    }
+    // var i;
+    // for (i = 0; i < kParticleCount; i++)
+    // {
+    //     var pdensity = userData.density[i];
+    //     console.log("particle " + i + " - local density: " + pdensity);
+    // }
+
+    // printMCGridInfo(Nx, Ny, Nz);
+    // printMCGridDensInfo(Nx, Ny, Nz);
+    
+    // printMCGridCubeIndexInfo();
+    // printTriCount();
+    // printTrianglesInfo();
+    // printPackTriangles();
+    // WriteFrame();
 }
