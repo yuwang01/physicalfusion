@@ -87,7 +87,7 @@ p {
 
         vColor = vec4(0.8, 0.8, .8, 1.0);
 
-        gl_PointSize  = 10.0;
+        gl_PointSize  = 5.0;
     }
 </script>
 
@@ -119,21 +119,26 @@ p {
 
 <script id="triangle-vshader" type="x-shader/x-vertex">
     precision mediump float;
-    uniform mat4 mvp;
-    attribute vec3 marchingcube;
     
-    varying vec4 vColor;
+    attribute vec3 position;
+    attribute vec3 normal;
+
+    uniform mat4 view, proj;
+
+    varying vec3 position_eye_, normal_eye_;
 
     void main(void) {
-        vec4 pos;
+
+        // position_eye = vec3(view * vec4(vertex_position, 1.0));
+        // normal_eye = vec3(view * vec4(normal, 0.0));
+
+        position_eye_ = vec3(view * vec4(position.xyz, 1.0));
+        // normal_eye_ = vec3(view * vec4(normal, 0.0));
+        // normal_eye_ = normalize(vec3(view * vec4(normal, 0.0)));
+        normal_eye_ = vec3(view * vec4(normal, 0.0));
         
-        pos = vec4(marchingcube.xyz, 1.0);
-
-        gl_Position = mvp * pos;
-
-        vColor = vec4(1.0, 0.0, 0.0, 1.0);
-
-        gl_PointSize  = 2.0;
+        gl_Position = proj * view * vec4(position.xyz, 1.0);
+        
     }
 
 </script>
@@ -141,46 +146,82 @@ p {
 <script id="triangle-fshader" type="x-shader/x-fragment">
     precision mediump float;
     
-    varying vec4 vColor;
-    
+    varying vec3 position_eye_, normal_eye_;
+
+    uniform mat4 view;
+
+    vec3 surfaceColor = vec3(0.8, 0.1, 0.1);
+
+    // fixed point light properties
+    vec3 light_position_world  = vec3 (10.0, 5.0, 10.0);
+    vec3 Ls = vec3 (0.2, 0.2, 0.2);
+    vec3 Ld = vec3 (0.9, 0.9, 0.9);
+    vec3 La = vec3 (1.0, 1.0, 1.0);
+
+    // surface reflectance
+    vec3 Ks = vec3 (0.5, 0.5, 0.5); // fully reflect specular light
+    vec3 Kd = vec3 (0.5, 0.5, 0.5); // orange diffuse surface reflectance
+    vec3 Ka = vec3 (0.1, 0.1, 0.1); // fully reflect ambient light
+    float specular_exponent = 100.0; // specular 'power'
+
     void main(void) {
+    
+        // ambient intensity
+        vec3 Ia = La * Ka;
+
+        // vec3 normal = vec3(normal_eye.x+.5, normal_eye.y+.5, normal_eye.z+.5);
+
+        // diffuse intensity
+        // raise light position to eye space
+        vec3 light_position_eye = vec3 (view * vec4(light_position_world, 1.0));
+        vec3 distance_to_light_eye = light_position_eye - position_eye_;
+        vec3 direction_to_light_eye = normalize (distance_to_light_eye);
+        float dot_prod = dot (direction_to_light_eye, normalize(normal_eye_));
+        dot_prod = clamp(dot_prod, 0.0, 1.0);
+        vec3 Id = Ld * Kd * dot_prod * surfaceColor; // final diffuse intensity
         
-        gl_FragColor = vColor;
+        // specular intensity
+        vec3 surface_to_viewer_eye = normalize(-position_eye_);
+        
+        // vec3 reflection_eye = reflect (-direction_to_light_eye, normalize(normal_eye));
+        // float dot_prod_specular = dot (reflection_eye, surface_to_viewer_eye);
+        // dot_prod_specular = max (dot_prod_specular, 0.0);
+        // float specular_factor = pow (dot_prod_specular, specular_exponent);
+        
+        // blinn
+        vec3 half_way_eye = normalize (surface_to_viewer_eye + direction_to_light_eye);
+        float dot_prod_specular = clamp(dot(half_way_eye, normalize(normal_eye_)), 0.0, 1.0);
+        float specular_factor = pow(dot_prod_specular, specular_exponent);
+        
+        vec3 Is = Ls * Ks * specular_factor * dot_prod; // final specular intensity
+        
+        // final colour
+        gl_FragColor = vec4 (Is + Id + Ia, 1.0);
+        // gl_FragColor = vec4(normalize(normal_eye_), 1.0);
+        // gl_FragColor = vec4(normalize(normal_eye_), 1.0);
+
     }
 
 </script>
 
 <script id="cube-vshader" type="x-shader/x-vertex">
     precision mediump float;
-    uniform mat4 mvp;
-    uniform mat4 np;
+    
+    uniform mat4 view, proj;
 
     attribute vec3 cube;
     attribute vec3 vNormal;
 
     varying vec4 position;
-    varying vec3 light;
     varying vec3 normal;
 
-    varying vec3 eye;
-    
     void main()
     {
-        vec3 lightPos = vec3(0.0, 0.0, 3.0);
-        vec3 eyePos = vec3(0.0, 0.0, 0.0);
+        position = vec3(view * vec4(cube.xyz, 1.0));
 
-        position = vec4(cube.xyz, 1.0);
+        normal = vec3(view * vec4(vNormal, 0.0));
 
-        vec4 N = normalize(np * vec4(vNormal, 1.0));
-
-        normal = N.xyz;
-
-        light = lightPos - position.xyz;
-        eye = eyePos - position.xyz;
-
-        position = mvp * position;
-        
-        gl_Position = position;
+        gl_Position = proj * view * vec4(cube.xyz, 1.0);
     }
 
 </script>
@@ -189,40 +230,58 @@ p {
     precision mediump float;
 
     varying vec4 position;
-    varying vec3 light;
     varying vec3 normal;
 
-    varying vec3 eye;
+    uniform mat4 view;
+
+    vec3 surfaceColor = vec3(0.8, 0.1, 0.1);
+
+    // fixed point light properties
+    vec3 light_position_world  = vec3 (10.0, 5.0, 10.0);
+    vec3 Ls = vec3 (0.2, 0.2, 0.2);
+    vec3 Ld = vec3 (0.9, 0.9, 0.9);
+    vec3 La = vec3 (1.0, 1.0, 1.0);
+
+    // surface reflectance
+    vec3 Ks = vec3 (0.5, 0.5, 0.5); // fully reflect specular light
+    vec3 Kd = vec3 (0.5, 0.5, 0.5); // orange diffuse surface reflectance
+    vec3 Ka = vec3 (0.1, 0.1, 0.1); // fully reflect ambient light
+    float specular_exponent = 100.0; // specular 'power'
 
     void main() {
         
-        vec3 nNormal = normalize(normal);
-        vec3 nVertToLight = normalize(light);
-        vec3 nVertToEye = normalize(eye);
+        // ambient intensity
+        vec3 Ia = La * Ka;
 
-        float ambientTerm = 0.02;
-        vec3 ambientColor = vec3(.4, .4, .4);
-        vec3 Iamb = ambientColor * ambientTerm;
+        // vec3 normal = vec3(normal_eye.x+.5, normal_eye.y+.5, normal_eye.z+.5);
 
-        float dotVL = clamp(dot(nNormal, nVertToLight), 0.0, 1.0);
-        float diffuseTerm = .3;
-        // vec3 diffuseColor = vec3(0.74, 0.71, 0.42);
-        vec3 diffuseColor = vec3(0.6, 0.6, 0.6);
-        vec3 Idiff = diffuseColor * diffuseTerm * dotVL;
+        // diffuse intensity
+        // raise light position to eye space
+        vec3 light_position_eye = vec3 (view * vec4(light_position_world, 1.0));
+        vec3 distance_to_light_eye = light_position_eye - position;
+        vec3 direction_to_light_eye = normalize (distance_to_light_eye);
+        float dot_prod = dot (direction_to_light_eye, normalize(normal));
+        dot_prod = clamp(dot_prod, 0.0, 1.0);
+        vec3 Id = Ld * Kd * dot_prod * surfaceColor; // final diffuse intensity
         
-        float shinness = 100.;
-        float specularTerm = 1.0 - ambientTerm - diffuseTerm;
-        vec3 specularColor = vec3(1.0, 1.0, 1.0);
+        // specular intensity
+        vec3 surface_to_viewer_eye = normalize(-position);
         
-        vec3 H = normalize(nVertToEye + nVertToLight);
-        float dotNH = clamp(dot(nNormal, H), 0.0, 1.0);
-
-        vec3 Ispec = specularColor * specularTerm * pow(dotNH, shinness);
-
-        vec3 color = Iamb + Idiff + Ispec;
-
-        gl_FragColor = vec4(color, 1.0);
+        // vec3 reflection_eye = reflect (-direction_to_light_eye, normalize(normal_eye));
+        // float dot_prod_specular = dot (reflection_eye, surface_to_viewer_eye);
+        // dot_prod_specular = max (dot_prod_specular, 0.0);
+        // float specular_factor = pow (dot_prod_specular, specular_exponent);
         
+        // blinn
+        vec3 half_way_eye = normalize (surface_to_viewer_eye + direction_to_light_eye);
+        float dot_prod_specular = clamp(dot(half_way_eye, normalize(normal)), 0.0, 1.0);
+        float specular_factor = pow(dot_prod_specular, specular_exponent);
+        
+        vec3 Is = Ls * Ks * specular_factor * dot_prod; // final specular intensity
+        
+        // final colour
+        // gl_FragColor = vec4 (Is + Id + Ia, 1.0);
+        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
     }
 </script>
 
@@ -273,7 +332,8 @@ p {
     {
         unsigned int gid = get_global_id(0);
 
-        vel[gid].y -= 9.8 * dt;
+        // vel[gid].y -= 9.8 * dt;
+        vel[gid].y -= 13.546 * dt;
     }
 
 </script>
@@ -588,6 +648,146 @@ p {
         }
     }
 
+    // __kernel void sph_kernel_findNeighbors(
+    //     int kParticleCount,
+    //     float viewW,
+    //     float viewH,
+    //     float viewD,
+    //     int nx,
+    //     int ny,
+    //     int nz,
+    //     float cellSize,
+    //     __global float4* pos,
+    //     __global int* gridCellIdxFixedUp,
+    //     __global int* neighborMap,
+    //     int maxNeighbors,
+    //     float kEpsilon)
+    // {
+    //     unsigned int gid = get_global_id(0);
+        
+    //     float3 myPos = pos[gid].xyz;
+
+    //     float rangeRatioX = (nx * cellSize - 0) / viewW;
+    //     float rangeRatioY = (ny * cellSize - 0) / viewH;
+    //     float rangeRatioZ = (nz * cellSize - 0) / viewD;
+        
+    //     float4 tempPos;
+    //     tempPos.x = (myPos.x - (-viewW/2)) * rangeRatioX + 0;
+    //     tempPos.y = (myPos.y - (-viewH/2)) * rangeRatioY + 0;
+    //     tempPos.z = (myPos.z - (-viewD/2)) * rangeRatioZ + 0;
+
+    //     // myPos(x, y, z) in [0, nx*2*h] mapped to 3d voxel coords [v3d.x, v3d.y, v3d.z]
+    //     // each between the range [0, n] (assuming cubic space)
+    //     float3 voxel3d;
+    //     voxel3d.x = tempPos.x / cellSize;
+    //     voxel3d.y = tempPos.y / cellSize;
+    //     voxel3d.z = tempPos.z / cellSize;
+
+    //     float3 corner;
+        
+    //     corner.x = floor(voxel3d.x + .5);
+    //     corner.y = floor(voxel3d.y + .5);
+    //     corner.z = floor(voxel3d.z + .5);
+
+    //     // int voxelID = floor(voxel3d.x) + floor(voxel3d.y) * nx + floor(voxel3d.z) * nx * ny;
+
+    //     // compute voxel IDs based on the position of the particles 
+    //     int voxel[8];
+    //     voxel[0] = corner.x + corner.y * nx + corner.z * nx * ny ;
+    //     voxel[1] = ((corner.x < 1) ? 0 : (corner.x-1)) + corner.y * nx + corner.z * nx * ny;
+    //     voxel[2] = corner.x + ((corner.y < 1) ? 0 : (corner.y - 1)) * nx + corner.z * nx * ny;
+    //     voxel[3] = ((corner.x < 1) ? 0 : (corner.x-1)) + ((corner.y < 1) ? 0 : (corner.y - 1)) * nx + corner.z * nx * ny;
+    //     voxel[4] = corner.x + corner.y * nx + ((corner.z < 1) ? 0 : (corner.z - 1)) * nx * ny;
+    //     voxel[5] = ((corner.x < 1) ? 0 : (corner.x-1)) + corner.y * nx + ((corner.z < 1) ? 0 : (corner.z - 1)) * nx * ny;
+    //     voxel[6] = corner.x + ((corner.y < 1) ? 0 : (corner.y - 1)) * nx + ((corner.z < 1) ? 0 : (corner.z - 1)) * nx * ny;
+    //     voxel[7] = ((corner.x < 1) ? 0 : (corner.x-1)) + ((corner.y < 1) ? 0 : (corner.y - 1)) * nx + ((corner.z < 1) ? 0 : (corner.z - 1)) * nx * ny;
+
+    //     int random_voxel[8] = {0, 1, 2, 3, 4, 5, 6, 7};
+
+    //     // // use work item ID, gid, so seed uvec2 v = (gid, gid+1) etc.
+    //     // uint2 rvoxel01 = uint2(gid, gid+1);
+    //     // uint2 rvoxel02 = uint2(gid+2, gid+3);
+    //     // uint2 rvoxel03 = uint2(gid+4, gid+5);
+    //     // uint2 rvoxel04 = uint2(gid+6, gid+7);
+        
+    //     // rvoxel01 = TEA8(rvoxel01);
+    //     // rvoxel02 = TEA8(rvoxel02);
+    //     // rvoxel03 = TEA8(rvoxel03);
+    //     // rvoxel04 = TEA8(rvoxel04);
+
+    //     // float2 rvoxel01F = rand(rvoxel01);
+    //     // float2 rvoxel02F = rand(rvoxel02);
+    //     // float2 rvoxel03F = rand(rvoxel03);
+    //     // float2 rvoxel04F = rand(rvoxel04);
+
+    //     // // rangeMap(float val, float src0, float src1, float dst0, float dst1);
+    //     // rvoxel01F.x = rangeMap(rvoxel01F.x, 0.0, 1.0, 0.0, 8.0);
+    //     // rvoxel01F.y = rangeMap(rvoxel01F.y, 0.0, 1.0, 0.0, 8.0);
+    //     // rvoxel02F.x = rangeMap(rvoxel02F.x, 0.0, 1.0, 0.0, 8.0);
+    //     // rvoxel02F.y = rangeMap(rvoxel02F.y, 0.0, 1.0, 0.0, 8.0);
+    //     // rvoxel03F.x = rangeMap(rvoxel03F.x, 0.0, 1.0, 0.0, 8.0);
+    //     // rvoxel03F.y = rangeMap(rvoxel03F.y, 0.0, 1.0, 0.0, 8.0);
+    //     // rvoxel04F.x = rangeMap(rvoxel04F.x, 0.0, 1.0, 0.0, 8.0);
+    //     // rvoxel04F.y = rangeMap(rvoxel04F.y, 0.0, 1.0, 0.0, 8.0);
+        
+    //     // int random_voxel[8] = {
+    //     //     (int)rvoxel01F.x, (int)rvoxel01F.y,
+    //     //     (int)rvoxel02F.x, (int)rvoxel02F.y,
+    //     //     (int)rvoxel03F.x, (int)rvoxel03F.y,
+    //     //     (int)rvoxel04F.x, (int)rvoxel04F.y};
+        
+    //     int i;
+    //     int j;
+    //     int count = 0;
+    //     // find 32 neighboring particles
+    //     // not handling "not enough neighboring particle" situation
+    //     // for now, assume we can find 32 neighbors for sure
+    //     for (i = 0; i < 8; i++)
+    //     {
+    //         // locate the voxel currently being investigated
+    //         int vID = voxel[random_voxel[i]];
+
+    //         int pid = gridCellIdxFixedUp[vID];
+                
+    //         // in voxel vID get a random number based on the number of particles in that voxel
+    //         // first, get the number of particles in voxel[voxelID], pCount
+    //         int npid = (vID + 1 < nx * ny * nz) ? gridCellIdxFixedUp[vID+1] : kParticleCount;
+    //         int pCount = npid - pid;
+
+    //         // if the voxel is empty, skip this iteration
+    //         if (pCount == 0)
+    //         {
+    //             continue;
+    //         }
+
+    //         // uint2 rparticle = uint2(pCount, pCount+1);
+    //         // rparticle = TEA8(rparticle);
+    //         // float2 rparticleF = rand(rparticle);
+    //         // rparticleF.x = rangeMap(rparticleF.x, 0.0, 1.0, 0.0, (float)pCount);
+    //         // // rparticleF.y = rangeMap(rparticleF.y, 0.0, 1.0, 0.0, (float)pCount);
+
+    //         // int randPart = (int)rparticleF.x;
+            
+    //         for (j = pid; j < pid + pCount; j++)
+    //         {
+    //             if (count < maxNeighbors)
+    //             {
+    //                 float3 diff = myPos.xyz - pos[j].xyz;
+    //                 float dist2 = diff.x * diff.x + diff.y * diff.y + diff.z * diff.z;
+                    
+    //                 if (dist2 < cellSize * cellSize)
+    //                 {
+    //                     // int tempIdx = j;
+    //                     neighborMap[maxNeighbors*gid+count] = j;
+    //                     count++;
+    //                 }
+    //                 else
+    //                     continue;
+    //             }
+    //         }
+    //     }
+    // }
+
 </script>
 
 <script id="sph_kernel_pressure" type="x-kernel">
@@ -639,330 +839,6 @@ p {
         nearDensity[gid] = tempNearDens;
         pressure[gid] = kStiffness * (tempDens - m * kRestDensity);
         nearPressure[gid] = kNearStiffness * tempNearDens;
-
-    }
-
-</script>
-
-<script id="mc_kernel_gridval" type="x-kernel">
-
-    __kernel void mc_kernel_gridval(
-        int kParticleCount,
-        float m,
-        float cellSize,
-        float kNorm,
-        float kEpsilon,
-        __global float4* pos,
-        __global float* mcgrid)
-    {
-        unsigned int gid = get_global_id(0);
-
-        // marching cubes step: update grid point values
-        // each particle update up to 8 vertices
-        float3 vertPos0 = float3(mcgrid[32*gid+0], mcgrid[32*gid+1], mcgrid[32*gid+2]);
-        float3 vertPos1 = float3(mcgrid[32*gid+4], mcgrid[32*gid+5], mcgrid[32*gid+6]);
-        float3 vertPos2 = float3(mcgrid[32*gid+8], mcgrid[32*gid+9], mcgrid[32*gid+10]);
-        float3 vertPos3 = float3(mcgrid[32*gid+12], mcgrid[32*gid+13], mcgrid[32*gid+14]);
-        float3 vertPos4 = float3(mcgrid[32*gid+16], mcgrid[32*gid+17], mcgrid[32*gid+18]);
-        float3 vertPos5 = float3(mcgrid[32*gid+20], mcgrid[32*gid+21], mcgrid[32*gid+22]);
-        float3 vertPos6 = float3(mcgrid[32*gid+24], mcgrid[32*gid+25], mcgrid[32*gid+26]);
-        float3 vertPos7 = float3(mcgrid[32*gid+28], mcgrid[32*gid+29], mcgrid[32*gid+30]);
-
-        float r = 0.0;
-        float a = 0.0;
-        
-        float tempDens0 = 0.0;
-        float tempDens1 = 0.0;
-        float tempDens2 = 0.0;
-        float tempDens3 = 0.0;
-        float tempDens4 = 0.0;
-        float tempDens5 = 0.0;
-        float tempDens6 = 0.0;
-        float tempDens7 = 0.0;
-        
-        float3 pPos = float3(0.0, 0.0, 0.0);
-
-        int i;
-        for (i = 0; i < kParticleCount; i++)
-        {   
-            pPos = pos[i].xyz;
-
-            r = length(pPos - vertPos0);
-            if ((r >= kEpsilon) && (r <= cellSize))
-            {
-                a = 1.0 - r/cellSize;
-                tempDens0 += m * a * a * kNorm;
-            }
-
-            r = length(pPos - vertPos1);
-            if ((r >= kEpsilon) && (r <= cellSize))
-            {
-                a = 1.0 - r/cellSize;
-                tempDens1 += m * a * a * kNorm;
-            }
-            
-            r = length(pPos - vertPos2);
-            if ((r >= kEpsilon) && (r <= cellSize))
-            {
-                a = 1.0 - r/cellSize;
-                tempDens2 += m * a * a * kNorm;
-            }
-            
-            r = length(pPos - vertPos3);
-            if ((r >= kEpsilon) && (r <= cellSize))
-            {
-                a = 1.0 - r/cellSize;
-                tempDens3 += m * a * a * kNorm;
-            }
-            
-            r = length(pPos - vertPos4);
-            if ((r >= kEpsilon) && (r <= cellSize))
-            {
-                a = 1.0 - r/cellSize;
-                tempDens4 += m * a * a * kNorm;
-            }
-            
-            r = length(pPos - vertPos5);
-            if ((r >= kEpsilon) && (r <= cellSize))
-            {
-                a = 1.0 - r/cellSize;
-                tempDens5 += m * a * a * kNorm;
-            }
-            
-            r = length(pPos - vertPos6);
-            if ((r >= kEpsilon) && (r <= cellSize))
-            {
-                a = 1.0 - r/cellSize;
-                tempDens6 += m * a * a * kNorm;
-            }
-            
-            r = length(pPos - vertPos7);
-            if ((r >= kEpsilon) && (r <= cellSize))
-            {
-                a = 1.0 - r/cellSize;
-                tempDens7 += m * a * a * kNorm;
-            }
-
-        }
-
-        mcgrid[32*gid+3] = tempDens0;
-        mcgrid[32*gid+7] = tempDens1;
-        mcgrid[32*gid+11] = tempDens2;
-        mcgrid[32*gid+15] = tempDens3;
-        mcgrid[32*gid+19] = tempDens4;
-        mcgrid[32*gid+23] = tempDens5;
-        mcgrid[32*gid+27] = tempDens6;
-        mcgrid[32*gid+31] = tempDens7;
-        
-    }
-</script>
-
-<script id="mc_kernel_cubeindex" type="x-kernel">
-    
-    __kernel void mc_kernel_cubeindex(
-        float isolevel,
-        __global float* mcgrid,
-        __global unsigned char* cubeindex)
-    {
-        unsigned int gid = get_global_id(0);
-
-        unsigned char idx;
-        
-        // if (mcgrid[32*gid+3] < isolevel)  idx |= 1;
-        // if (mcgrid[32*gid+7] < isolevel)  idx |= 2;
-        // if (mcgrid[32*gid+11] < isolevel) idx |= 4;
-        // if (mcgrid[32*gid+15] < isolevel) idx |= 8;
-        // if (mcgrid[32*gid+19] < isolevel) idx |= 16;
-        // if (mcgrid[32*gid+23] < isolevel) idx |= 32;
-        // if (mcgrid[32*gid+27] < isolevel) idx |= 64;
-        // if (mcgrid[32*gid+31] < isolevel) idx |= 128;
-
-        idx =  (mcgrid[32*gid+3] < isolevel);
-        idx += (mcgrid[32*gid+7] < isolevel)*2;
-        idx += (mcgrid[32*gid+11] < isolevel)*4;
-        idx += (mcgrid[32*gid+15] < isolevel)*8;
-        idx += (mcgrid[32*gid+19] < isolevel)*16;
-        idx += (mcgrid[32*gid+23] < isolevel)*32;
-        idx += (mcgrid[32*gid+27] < isolevel)*64;
-        idx += (mcgrid[32*gid+31] < isolevel)*128;
-
-        cubeindex[gid] = idx;
-    }
-
-</script>
-
-<script id="mc_kernel_polygonisecube" type="x-kernel">
-
-    float ABS(float diff)
-    {
-        if (diff < 0)
-            return -1.0*diff;
-        else
-            return diff;
-    }
-
-    float3 VertexInterp(float isoval, float4 p1, float4 p2)
-    {
-        float mu;
-        float3 p = float3(0.0, 0.0, 0.0);
-
-        if (ABS(isoval - p1.w) < 0.00001)
-        {
-            p = p1.xyz;
-            
-        }
-
-        if (ABS(isoval - p2.w) < 0.00001)
-        {
-            p = p2.xyz;
-            
-        } 
-
-        if (ABS(p1.w - p2.w) < 0.00001)
-        {
-            p = p1.xyz;
-            
-        } 
-
-        mu = (isoval - p1.w) / (p2.w - p1.w);
-        p.x = p1.x + mu * (p2.x - p1.x);
-        p.y = p1.y + mu * (p2.y - p1.y);
-        p.z = p1.z + mu * (p2.z - p1.z);
-
-        p.x = mu;
-        p.y = mu;
-        p.z = mu;
-        
-        return p;
-    }
-    
-    __kernel void mc_kernel_polygonisecube(
-        __global unsigned short* edgetable,
-        __global signed char* tritable,
-        __global unsigned char* cubeindex,
-        __global float* mcgrid,
-        float isolevel,
-        __global float* triangles,
-        __global char* trianglescount)
-    {
-        unsigned int gid = get_global_id(0);
-        
-        unsigned char cubeidx = cubeindex[gid];
-        unsigned short edges = edgetable[cubeidx];
-
-        float4 vert0 = float4(mcgrid[32*gid+0],  mcgrid[32*gid+1],  mcgrid[32*gid+2],  mcgrid[32*gid+3]);
-        float4 vert1 = float4(mcgrid[32*gid+4],  mcgrid[32*gid+5],  mcgrid[32*gid+6],  mcgrid[32*gid+7]);
-        float4 vert2 = float4(mcgrid[32*gid+8],  mcgrid[32*gid+9],  mcgrid[32*gid+10], mcgrid[32*gid+11]);
-        float4 vert3 = float4(mcgrid[32*gid+12], mcgrid[32*gid+13], mcgrid[32*gid+14], mcgrid[32*gid+15]);
-        float4 vert4 = float4(mcgrid[32*gid+16], mcgrid[32*gid+17], mcgrid[32*gid+18], mcgrid[32*gid+19]);
-        float4 vert5 = float4(mcgrid[32*gid+20], mcgrid[32*gid+21], mcgrid[32*gid+22], mcgrid[32*gid+23]);
-        float4 vert6 = float4(mcgrid[32*gid+24], mcgrid[32*gid+25], mcgrid[32*gid+26], mcgrid[32*gid+27]);
-        float4 vert7 = float4(mcgrid[32*gid+28], mcgrid[32*gid+29], mcgrid[32*gid+30], mcgrid[32*gid+31]);
-
-        char ntriangle = 0;
-
-        float3 vertlist[12];
-
-        // cube is entirely in/out of the surface
-        if (edges == 0)
-        {
-            ntriangle = 0;
-        }
-        else
-        {
-            if (edges & 1)
-            {
-                vertlist[0] = VertexInterp(isolevel, vert0, vert1);
-            } else if (edges & 2)
-            {
-                vertlist[1] = VertexInterp(isolevel, vert1, vert2);
-            } else if (edges & 4)
-            {
-                vertlist[2] = VertexInterp(isolevel, vert2, vert3);
-            } else if (edges & 8)
-            {
-                vertlist[3] = VertexInterp(isolevel, vert3, vert0);
-            } else if (edges & 16)
-            {
-                vertlist[4] = VertexInterp(isolevel, vert4, vert5);
-            } else if (edges & 32)
-            {
-                vertlist[5] = VertexInterp(isolevel, vert5, vert6);
-            } else if (edges & 64)
-            {
-                vertlist[6] = VertexInterp(isolevel, vert6, vert7);
-            } else if (edges & 128)
-            {
-                vertlist[7] = VertexInterp(isolevel, vert7, vert4);
-            } else if (edges & 256)
-            {
-                vertlist[8] = VertexInterp(isolevel, vert0, vert4);
-            } else if (edges & 512)
-            {
-                vertlist[9] = VertexInterp(isolevel, vert1, vert5);
-            } else if (edges & 1024)
-            {
-                vertlist[10] = VertexInterp(isolevel, vert2, vert6);
-            } else if (edges & 2048)
-            {
-                vertlist[11] = VertexInterp(isolevel, vert3, vert7);
-            }
-            
-            int i;
-            
-            for (i=0; tritable[cubeidx*16+i] != -1; i+=3)
-            {
-                triangles[45*gid+9*i+0] = vertlist[tritable[cubeidx * 16 + i]].x;
-                triangles[45*gid+9*i+1] = vertlist[tritable[cubeidx * 16 + i]].y;
-                triangles[45*gid+9*i+2] = vertlist[tritable[cubeidx * 16 + i]].z;
-                
-                triangles[45*gid+9*i+3] = vertlist[tritable[cubeidx * 16 + i + 1]].x;
-                triangles[45*gid+9*i+4] = vertlist[tritable[cubeidx * 16 + i + 1]].y;
-                triangles[45*gid+9*i+5] = vertlist[tritable[cubeidx * 16 + i + 1]].z;
-
-                triangles[45*gid+9*i+6] = vertlist[tritable[cubeidx * 16 + i + 2]].x;
-                triangles[45*gid+9*i+7] = vertlist[tritable[cubeidx * 16 + i + 2]].y;
-                triangles[45*gid+9*i+8] = vertlist[tritable[cubeidx * 16 + i + 2]].z;
-
-                ntriangle++;
-            }
-        }
-        
-        trianglescount[gid] = ntriangle;        
-    }
-
-</script>
-
-<script id="mc_kernel_packtriangles" type="x-kernel">
-
-    __kernel void mc_kernel_packtriangles(
-        __global float* triangles,
-        __global char* trianglescount,
-        __global float* trianglesRender)
-    {
-        unsigned int gid = get_global_id(0);
-
-        // char beforeMe = 0;
-
-        // int i;
-        // for (i = 0; i < gid; i++)
-        // {
-        //     beforeMe += trianglescount[i];
-        // }
-
-        // for (i = 0; i < trianglescount[gid]; i++)
-        // {
-        //     // trianglesRender[3*beforeMe+3*i+0] = triangles[15*gid+3*i+0];
-        //     // trianglesRender[3*beforeMe+3*i+1] = triangles[15*gid+3*i+1];
-        //     // trianglesRender[3*beforeMe+3*i+2] = triangles[15*gid+3*i+2];
-        //     trianglesRender[15*gid+3*i+0] = triangles[15*gid+3*i+0];
-        //     trianglesRender[15*gid+3*i+1] = triangles[15*gid+3*i+1];
-        //     trianglesRender[15*gid+3*i+2] = triangles[15*gid+3*i+2];
-        // }
-        
-        trianglesRender[45*gid+0] = triangles[45*gid+0];
-        trianglesRender[45*gid+1] = triangles[45*gid+1];
-        trianglesRender[45*gid+2] = triangles[45*gid+2];
 
     }
 
@@ -1085,6 +961,7 @@ p {
     __kernel void sph_kernel_resolveCollisions(
         float dt,
         float pRadius,
+        float cellSize,
         float viewW,
         float viewH,
         float viewD,
@@ -1097,7 +974,7 @@ p {
         float3 myVel = vel[gid].xyz;
 
         float3 center         = float3(0.0);
-        float3 boxSize        = float3(viewW/2-pRadius, viewH/2-pRadius, viewD/2-pRadius);
+        float3 boxSize        = float3(viewW/2-cellSize-pRadius, viewH/2-cellSize-pRadius, viewD/2-cellSize-pRadius);
         
         float3 xLocal = myPos - center;
         float3 contactPointLocal = min(boxSize, max(-boxSize, xLocal));
@@ -1115,6 +992,136 @@ p {
 
     }
 
+</script>
+
+<script id="mc_kernel_reset" type="x-kernel">
+    __kernel void mc_kernel_reset(
+        int numVolIdx,
+        __global float4* mcgrid)
+    {
+        unsigned int gid = get_global_id(0);
+
+        mcgrid[gid].w = 0.0;
+    }
+
+</script>
+
+<script id="mc_kernel_gridval" type="x-kernel">
+    
+    __kernel void mc_kernel_gridval(
+        float m,
+        float cellSize,
+        float kNorm,
+        float kNearNorm,
+        float kEpsilon,
+        __global float4* pos,
+        __global float4* mcgrid,
+        int numVolIdx)
+    {
+        unsigned int gid = get_global_id(0);
+
+        float3 myPos = pos[gid].xyz;
+
+        int i;
+        float3 posJ;
+        
+        float a;
+        
+        for (i = 0; i < numVolIdx; i++)
+        {
+            posJ = mcgrid[i].xyz;
+            a = 0.0;
+
+            float r = length(myPos - posJ);
+
+            if (r >= kEpsilon && r <= cellSize)
+            {
+                // a = 1.0 - r/cellSize;
+                // a = r/cellSize;
+                a = cellSize/r;
+            }
+            else
+                continue;
+
+            // mcgrid[i].w += m * (.5*cos(a)) * kNearNorm;
+            mcgrid[i].w += m * a * kNearNorm;
+            // mcgrid[i].w += m * a * kNorm;
+        }
+    }
+
+</script>
+
+<script id="mc_kernel_gridGrad" type="x-kernel">
+
+    __kernel void mc_kernel_gridGrad(
+        int volnx,
+        int volny,
+        int volnz,
+        float edgex,
+        float edgey,
+        float edgez,
+        __global float4* mcgrid,
+        __global float4* mcgridGrad)
+    {
+        unsigned int gid = get_global_id(0);
+        
+        if (mcgridGrad[gid].w != -1.0)
+        {
+            mcgridGrad[gid].x = (mcgrid[gid-1].w - mcgrid[gid+1].w)/edgex;
+            mcgridGrad[gid].y = (mcgrid[gid-(volny+1)].w - mcgrid[gid+(volny+1)].w)/edgey;
+            mcgridGrad[gid].z = (mcgrid[gid-(volny+1)*(volnx+1)].w - mcgrid[gid+(volny+1)*(volnx+1)].w)/edgez;
+        }
+    }
+
+</script>
+
+<script id="mc_kernel_cubeindex" type="x-kernel">
+    
+    __kernel void mc_kernel_cubeindex(
+        float isoval, // isosurface value
+        int volnx,
+        int volny,
+        int volnz,
+        __global float4* mcgrid,
+        __global int* pointindex,
+        __global int* cubeindex)
+    {
+        unsigned int gid = get_global_id(0);
+
+        if ((int)gid < volnx * volny * volnz)
+        {
+            int idx0 = pointindex[8*gid+0];
+            int idx1 = pointindex[8*gid+1];
+            int idx2 = pointindex[8*gid+2];
+            int idx3 = pointindex[8*gid+3];
+            int idx4 = pointindex[8*gid+4];
+            int idx5 = pointindex[8*gid+5];
+            int idx6 = pointindex[8*gid+6];
+            int idx7 = pointindex[8*gid+7];
+
+            float val0 = mcgrid[idx4].w;
+            float val1 = mcgrid[idx5].w;
+            float val2 = mcgrid[idx1].w;
+            float val3 = mcgrid[idx0].w;
+            float val4 = mcgrid[idx7].w;
+            float val5 = mcgrid[idx6].w;
+            float val6 = mcgrid[idx2].w;
+            float val7 = mcgrid[idx3].w;
+
+            int cidx = 0;
+
+            cidx =  (val0 < isoval); 
+            cidx += (val1 < isoval)*2; 
+            cidx += (val2 < isoval)*4; 
+            cidx += (val3 < isoval)*8; 
+            cidx += (val4 < isoval)*16; 
+            cidx += (val5 < isoval)*32; 
+            cidx += (val6 < isoval)*64; 
+            cidx += (val7 < isoval)*128;
+
+            cubeindex[gid] = cidx;
+        }
+    }
 </script>
 
 <script type="text/javascript" src="/socket.io/socket.io.js"></script> 
@@ -1164,7 +1171,7 @@ p {
         <div id="content"></div> <!--This is where the data from the server is added-->
      
     </form>
-
+    
     <script type="text/javascript">
                 var socket = io.connect("/"); 
                 

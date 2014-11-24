@@ -33,11 +33,11 @@ function InitBreakDam() {
 
     var count = 0;
 
-    for (var i = -kViewWidth/2; i < kViewWidth/2; i+=kCellSize/2)
+    for (var i = -kViewWidth/2+kParticleRadius+kCellSize; i < kViewWidth/2-kParticleRadius-kCellSize; i+=kCellSize/2)
     {
-        for (var j = -kViewHeight/2; j < kViewHeight/2; j+=kCellSize/2)
+        for (var j = -kViewHeight/2+kParticleRadius+kCellSize; j < kViewHeight/2-kParticleRadius-kCellSize; j+=kCellSize/2)
         {
-            for (var k = -kViewDepth/2; k < kViewDepth/2; k+=kCellSize/2)
+            for (var k = -kViewDepth/2+kParticleRadius+kCellSize; k < kViewDepth/2-kParticleRadius-kCellSize; k+=kCellSize/2)
             {
                 if (count < kParticleCount)
                 {
@@ -62,11 +62,11 @@ function InitMidAirDrop() {
 
     var count = 0;
 
-    for (var j = -kViewHeight/2; j < kViewHeight/2; j+=kCellSize/2)
+    for (var j = -kViewHeight/2+kParticleRadius+kCellSize; j < kViewHeight/2-kParticleRadius-kCellSize; j+=kCellSize/2)
     {
-        for (var i = -kViewWidth/4; i < 0; i+=kCellSize/2)
+        for (var i = -kViewWidth/4+kParticleRadius+kCellSize; i < 0; i+=kCellSize/2)
         {
-            for (var k = -kViewDepth/4; k < kViewDepth/4; k+=kCellSize/2)
+            for (var k = -kViewDepth/4+kParticleRadius+kCellSize; k < kViewDepth/4-kParticleRadius-kCellSize; k+=kCellSize/2)
             {
                 if (count < kParticleCount/2)
                 {
@@ -86,11 +86,11 @@ function InitMidAirDrop() {
         }
     }
 
-    for (var j = -kViewHeight/2; j < kViewHeight/2; j+=kCellSize/2)
+    for (var j = -kViewHeight/2+kParticleRadius+kCellSize; j < kViewHeight/2-kParticleRadius-kCellSize; j+=kCellSize/2)
     {
-        for (var i = 0; i < kViewWidth/4; i+=kCellSize/2)    
+        for (var i = 0; i < kViewWidth/4-kParticleRadius-kCellSize; i+=kCellSize/2)    
         {
-            for (var k = -kViewDepth/4; k < kViewDepth/4; k+=kCellSize/2)
+            for (var k = -kViewDepth/4+kParticleRadius+kCellSize; k < kViewDepth/4-kParticleRadius-kCellSize; k+=kCellSize/2)
             {
                 if (count < kParticleCount)
                 {
@@ -115,11 +115,11 @@ function InitMidAirDrop() {
 function InitTwoCubes() {
     var count = 0;
 
-    for (var j = -kViewHeight/2; j < kViewHeight/2; j+=kCellSize/2)
+    for (var j = -kViewHeight/2+kParticleRadius+kCellSize; j < kViewHeight/2-kParticleRadius-kCellSize; j+=kCellSize/2)
     {
-        for (var i = 0; i < kViewWidth/2; i+=kCellSize/2)    
+        for (var i = 0; i < kViewWidth/2-kParticleRadius-kCellSize; i+=kCellSize/2)    
         {
-            for (var k = -kViewDepth/2; k < 0; k+=kCellSize/2)
+            for (var k = -kViewDepth/2+kParticleRadius+kCellSize; k < 0; k+=kCellSize/2)
             {
                 if (count < kParticleCount/3)
                 {
@@ -139,11 +139,11 @@ function InitTwoCubes() {
         }
     }
 
-    for (var j = -kViewHeight/2; j < kViewHeight/2; j+=kCellSize/2)
+    for (var j = -kViewHeight/2+kParticleRadius+kCellSize; j < kViewHeight/2-kParticleRadius-kCellSize; j+=kCellSize/2)
     {
-        for (var i = -kViewWidth/2; i < 0; i+=kCellSize/2)
+        for (var i = -kViewWidth/2+kParticleRadius+kCellSize; i < 0; i+=kCellSize/2)
         {
-            for (var k = 0; k < kViewDepth/2; k+=kCellSize/2)
+            for (var k = 0; k < kViewDepth/2-kParticleRadius-kCellSize; k+=kCellSize/2)
             {
                 if (count < kParticleCount)
                 {
@@ -169,11 +169,11 @@ function InitBallDrop() {
 
     var count = 0;
 
-    for (var k = -kViewDepth/4; k < kViewDepth/4; k+=kCellSize/2)
+    for (var k = -kViewDepth/4+kParticleRadius+kCellSize; k < kViewDepth/4-kParticleRadius-kCellSize; k+=kCellSize/2)
     {
-        for (var i = -kViewWidth/4; i < kViewWidth/4; i+=kCellSize/2)
+        for (var i = -kViewWidth/4+kParticleRadius+kCellSize; i < kViewWidth/4-kParticleRadius-kCellSize; i+=kCellSize/2)
         {
-            for (var j = kViewHeight/4; j < kViewHeight/2; j+=kCellSize/2)    
+            for (var j = kViewHeight/4+kParticleRadius+kCellSize; j < kViewHeight/2-kParticleRadius-kCellSize; j+=kCellSize/2)    
             {
                 if (count < kParticleCount/3)
                 {
@@ -193,11 +193,11 @@ function InitBallDrop() {
         }
     }
 
-    for (var j = -kViewHeight/2; j < 0; j+=kCellSize/2)
+    for (var j = -kViewHeight/2+kParticleRadius+kCellSize; j < 0; j+=kCellSize/2)
     {
-        for (var k = -kViewDepth/2; k < kViewDepth/2; k+=kCellSize/2)    
+        for (var k = -kViewDepth/2+kParticleRadius+kCellSize; k < kViewDepth/2-kParticleRadius-kCellSize; k+=kCellSize/2)    
         {
-            for (var i = -kViewWidth/2; i < kViewWidth/2; i+=kCellSize/2)                
+            for (var i = -kViewWidth/2+kParticleRadius+kCellSize; i < kViewWidth/2-kParticleRadius-kCellSize; i+=kCellSize/2)                
             {
                 if (count < kParticleCount)
                 {

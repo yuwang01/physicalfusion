@@ -1358,4 +1358,12 @@ __kernel void sph_kernel_resolveCollisions(
 
     }
 
-    
+__kernel void mc_kernel_reset(
+    int numVolIdx,
+    __global float4* mcgrid)
+{
+    unsigned int gid = get_global_id(0);
+
+    mcgrid[gid].w = 0.0;
+}
+

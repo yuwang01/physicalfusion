@@ -5,14 +5,14 @@ var WINH                = 800;          // drawing canvas height
 
 var kScreenWidth = WINW;
 var kScreenHeight = WINH;
-var kViewWidth = 4.0;
+var kViewWidth = 6.0;
 var kViewHeight = kScreenHeight*kViewWidth/kScreenWidth;
-var kViewDepth = 4.0;
+var kViewDepth = 6.0;
 
 var kPi = 3.1415926535;
-var kParticleCount = 2048;
+var kParticleCount = 4096;
 
-var kRestDensity = 40.0;
+var kRestDensity = 20.0;
 var kStiffness = 0.08;
 var kNearStiffness = 0.1;
 var kSurfaceTension = 0.0008;
@@ -29,7 +29,7 @@ var kDt2 = kDt*kDt;
 var kNorm = 20/(2*kPi*kH*kH);
 var kNearNorm = 30/(2*kPi*kH*kH);
 
-var kEpsilon = 0.0000001;
+var kEpsilon = 0.00001;
 var kEpsilon2 = kEpsilon*kEpsilon;
 
 var kMaxNeighbourCount = 64;
@@ -44,6 +44,7 @@ var kGridDepth     = Math.ceil(kViewDepth  / kCellSize);
 var kGridCellCount = kGridWidth * kGridHeight * kGridDepth;
 
 var mass = 1.0;
+
 //////////////////////////////////////////////////////////////////////////////
 
 var INNER_FLOPS         = 25;           // number of flops in inner loop of simulation
@@ -63,7 +64,21 @@ var Ny = kGridHeight;
 var Nz = kGridDepth;
 var voxel = Nx * Ny * Nz;
 
-var isovalue = 80.0;
+var volNx = 127;
+var volNy = 127;
+var volNz = 127;
+
+var volInd = (volNx + 1) * (volNy + 1) * (volNz + 1);
+
+var maxTri = 5 * volNx * volNy * volNz;
+
+var Ntri;
+
+var volEdgeX = kViewWidth / volNx;
+var volEdgeY = kViewHeight / volNy;
+var volEdgeZ = kViewDepth / volNz;
+
+var isovalue = 10.5;
 
 var frameCounter = 0;
 
@@ -93,6 +108,8 @@ var GRIDCELLIndex_ATTRIB_SIZE        = 1;
 var GRIDCELLIndexFixedUP_ATTRIB_SIZE = 1;
 var NEIGHBOR_MAP_ATTRIB_SIZE         = kMaxNeighbourCount;
 
+var TRIANGLE_ATTRIB_SIZE             = 3;
+
 // each element is float4 (p0, p1, p2, val)
 // there are 8 vertices recorded in each voxel
 var GRIDCELLVERT_ATTRIB_SIZE         = 32;
@@ -105,6 +122,10 @@ var GRIDTRIANGLECOUNT_ATTRIB_SIZE    = 1;
 
 var DENSITY_ATTRIB_SIZE              = 1;
 var PRESSURE_ATTRIB_SIZE             = 1;
+
+var GRIDCELL_ATTRIB_SIZE             = 4;
+var GRIDPOINT_ATTRIB_SIZE            = 8;
+var GRIDCELL_GRAD_ATTRIB_SIZE        = 4;
 
 //////////////////////////////////////
 
@@ -148,13 +169,12 @@ function UserData() {
 //////////////////////////////////////
 
 // Marching Cubes voxel information variables
-    this.MCgrid = null;
-    this.MCcubeindex = null;
-    this.edgeTable = null;
-    this.triTable = null;
-    this.triangles = null;
-    this.trianglesPack = null;
-    this.triCount = null;
+    this.gridcell = null; // 4 components: (x, y, z, density)
+    this.gridpoint = null; // 8 components: (the index of the 8 grid points)
+    this.gridGrad = null; // 4 components: (the gradient of density at a grid cell point)
+    this.cubeIndex = null; // 1 component: the cubeindex integer for each cube
+    this.tri = null;
+    this.norm = null;
 
 //////////////////////////////////////
 
@@ -198,15 +218,24 @@ function UserData() {
 
 // Marching Cubes shared buffers
     this.trianglesVBO          = null;
+    this.trianglesLoc          = null;
     this.triangleVertices      = null;
+    this.trianglesNormVBO      = null;
+    this.trianglesNormLoc      = null;
 
 // Marching Cubes matrix related variables
     this.mvpTriangleLoc      = null;
+    this.vpTriangleLoc       = null;
+    this.vTriangleLoc        = null;
+    this.pTriangleLoc        = null;
+
     this.ntri           = null;
 //////////////////////////////////////
     
     this.mvpPointLoc    = null;         // location of mvp matrix in point vertex shader
     this.mvpCubeLoc     = null;         // location of mvp matrix in cube vertex shader
+    this.vCubeLoc     = null;         // location of mvp matrix in cube vertex shader
+    this.pCubeLoc     = null;         // location of mvp matrix in cube vertex shader
     this.npCubeLoc      = null;
     this.normalLoc       = null;
 
@@ -239,6 +268,8 @@ function UserData() {
     this.theta          = 0.6;                  // angle to rotate model
     this.modelMatrix    = new J3DIMatrix4();    // updated each frame
     this.vpMatrix       = new J3DIMatrix4();    // constant
+    this.vMatrix       = new J3DIMatrix4();    // constant
+    this.pMatrix       = new J3DIMatrix4();    // constant
     this.mvpMatrix      = new J3DIMatrix4();    // updated each frame
     this.npMatrix       = new J3DIMatrix4();
 
@@ -405,31 +436,21 @@ function onLoad() {
     userData.gridCellIndex        = new Int32Array(voxel * GRIDCELLIndex_ATTRIB_SIZE);
     userData.gridCellIndexFixedUp = new Int32Array(voxel * GRIDCELLIndexFixedUP_ATTRIB_SIZE);
 
-    // each item is a 32 bit (4 bytes) floating point number
-    // there are 8 items in each voxel, each item is a float4
-    // float4 consists of (vert.x, vert.y, vert.z, val)
-    userData.MCgrid               = new Float32Array(voxel * GRIDCELLVERT_ATTRIB_SIZE);
-    // MCgridbufferSize = voxel * GRIDCELLVERT_ATTRIB_SIZE * Float32Array.BYTES_PER_ELEMENT;
-    InitGridInfo(Nx, Ny, Nz, -kViewWidth/2, -kViewHeight/2, -kViewDepth/2, kCellSize);
-    // printMCGridInfo(Nx, Ny, Nz);
-    
-    // each item is a 8 bit (1 bytes) integer
-    userData.MCcubeindex          = new Int32Array(voxel * GRIDCELLCUBEINDEX_ATTRIB_SIZE);
+    userData.gridcell             = new Float32Array((volNx+1)*(volNy+1)*(volNz+1)*GRIDCELL_ATTRIB_SIZE);
+    userData.gridpoint            = new Int32Array(volNx * volNy * volNz * GRIDPOINT_ATTRIB_SIZE);
+    InitGridCellState();
 
-    // edge table
-    userData.edgeTable = new Uint16Array(256);
-    initEdgeTable();
-    // printEdgeTable();
-    
-    // triangle table
-    userData.triTable = new Int8Array(256 * 16);
-    initTriTable();
-    // printTriTable();
+    userData.gridGrad             = new Float32Array((volNx+1)*(volNy+1)*(volNz+1)*GRIDCELL_GRAD_ATTRIB_SIZE);
+    InitGridGradState();
 
-    userData.triangles = new Float32Array(voxel * GRIDTRIANGLE_ATTRIB_SIZE);
-    // use trianglesRender to pack all vertices together, leaving no void in the middle of the array
-    // userData.trianglesPack = new Float32Array(voxel * GRIDTRIANGLE_ATTRIB_SIZE);
-    userData.triCount = new Int8Array(voxel * GRIDTRIANGLECOUNT_ATTRIB_SIZE);
+    userData.cubeIndex            = new Int32Array(volNx * volNy * volNz);
+    InitGridCubeIndex();
+
+    userData.tri                  = new Float32Array(maxTri * 9);
+    Memset(userData.tri, maxTri * 9);
+
+    userData.norm                 = new Float32Array(maxTri * 9);
+    Memset(userData.norm, maxTri * 9);
 
 // 2014-05-04: neighbor map added    
     userData.neighborMap          = new Int32Array(kParticleCount * kMaxNeighbourCount);
@@ -445,7 +466,7 @@ function onLoad() {
 
     userData.densityDEBUG         = new Float32Array(kParticleCount * DENSITY_ATTRIB_SIZE);
     userData.pressureDEBUG        = new Float32Array(kParticleCount * PRESSURE_ATTRIB_SIZE);
-
+    
 //////////////////////////////////////
 
     // InitParticleState();
@@ -472,7 +493,6 @@ function onLoad() {
     setInterval( function() { userData.simSampler.display(); }, DISPLAYPERIOD);
     setInterval( function() { userData.drawSampler.display(); }, DISPLAYPERIOD);
     setInterval( ShowFLOPS, 2*DISPLAYPERIOD);
-
 }
 
 function ShowFLOPS() {
@@ -497,22 +517,98 @@ function ShowFLOPS() {
 function InitParticleState() {
     
     InitBreakDam();
-    // InitMidAirDrop();
-    // InitTwoCubes();
-    // InitBallDrop();
-    // InitPoints();
-    // InitBreakDamParticlesRand();
-    // InitBreakDamParticles();
-    // InitBreakDamParticlesUniform();
-    // InitRandomParticles();
-    // InitParticlesOnSphere();
-    // InitParticlesOnDisc();
-    // InitParticlesOnSpinningDisc();
-    //InitParticlesOnRing();
-    //InitTwoParticles();
-    // InitFourParticles();
 
     setconsole.Particles = kParticleCount;
+}
+
+function arrayIndexFromCoordinate(i, xSize, j, ySize, k)
+{
+    return i + j * xSize + k * xSize * ySize;
+}
+
+function InitGridCellState(){
+    
+    var i, j, k;
+    for (i = 0; i < volNx + 1; i++)
+    {
+        for (j = 0; j < volNy + 1; j++)
+        {
+            for (k = 0; k < volNz + 1; k++)
+            {
+                userData.gridcell[4*arrayIndexFromCoordinate(i, volNx+1, j, volNy+1, k)+0] = -kViewWidth/2  + volEdgeX * i;
+                userData.gridcell[4*arrayIndexFromCoordinate(i, volNx+1, j, volNy+1, k)+1] = -kViewHeight/2 + volEdgeY * j;
+                userData.gridcell[4*arrayIndexFromCoordinate(i, volNx+1, j, volNy+1, k)+2] = -kViewDepth/2  + volEdgeX * k;
+            }
+        }
+    }
+
+    var count = 0;
+    
+    for (i = 0; i < volNx; i++)
+    {
+        for (j = 0; j < volNy; j++)
+        {
+            for (k = 0; k < volNz; k++)    
+            {
+                /*
+                       7--------6     *---4----*
+                      /|       /|    /|       /|
+                     / |      / |   7 |      5 |
+                    /  |     /  |  /  8     /  9
+                   3--------2   | *----6---*   |
+                   |   |    |   | |   |    |   |
+                   |   4----|---5 |   *---0|---*
+                   |  /     |  /  11 /     10 /
+                   | /      | /   | 3      | 1
+                   |/       |/    |/       |/
+                   0--------1     *---2----*
+                */
+                userData.gridpoint[8*count+0] = arrayIndexFromCoordinate(i,   volNx+1, j,   volNy+1, k);
+                userData.gridpoint[8*count+1] = arrayIndexFromCoordinate(i+1, volNx+1, j,   volNy+1, k);
+                userData.gridpoint[8*count+2] = arrayIndexFromCoordinate(i+1, volNx+1, j+1, volNy+1, k);
+                userData.gridpoint[8*count+3] = arrayIndexFromCoordinate(i,   volNx+1, j+1, volNy+1, k);
+                userData.gridpoint[8*count+4] = arrayIndexFromCoordinate(i,   volNx+1, j,   volNy+1, k+1);
+                userData.gridpoint[8*count+5] = arrayIndexFromCoordinate(i+1, volNx+1, j,   volNy+1, k+1);
+                userData.gridpoint[8*count+6] = arrayIndexFromCoordinate(i+1, volNx+1, j+1, volNy+1, k+1);
+                userData.gridpoint[8*count+7] = arrayIndexFromCoordinate(i,   volNx+1, j+1, volNy+1, k+1);
+
+                count++;
+            }
+        }
+    }
+}
+
+function InitGridGradState() {
+    var i, j, k;
+
+    for (k = 0; k < volNz+1; k++)
+    {
+        for (j = 0; j < volNy+1; j++)
+        {
+            for (i = 0; i < volNx+1; i++)
+            {
+                if ((i == 0) || (i == volNx) || (j == 0) || (j == volNy) || (k == 0) || (k == volNz))
+                    userData.gridGrad[4*arrayIndexFromCoordinate(i, volNx+1, j, volNy+1, k)+3] = -1.0;
+            }
+        }
+    }
+}
+
+function InitGridCubeIndex() {
+    var i;
+    for (i = 0; i < volNx * volNy * volNz; i++)
+    {
+        userData.cubeIndex[i] = 0;
+    }
+}
+
+function Memset(data, count)
+{
+    var i;
+    for (i = 0; i < count; i++)
+    {
+        data[i] = 0.0;
+    }
 }
 
 function MainLoop() {
@@ -570,7 +666,7 @@ function MainLoop() {
     }
 
     // Marching Cubes computation
-    // March();
+    March();
 
     userData.simSampler.endFrame();
     userData.drawSampler.startFrame();
