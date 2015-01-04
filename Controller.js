@@ -12,7 +12,7 @@ var kViewDepth = 6.0;
 var kPi = 3.1415926535;
 var kParticleCount = 4096;
 
-var kRestDensity = 20.0;
+var kRestDensity = 40.0;
 var kStiffness = 0.08;
 var kNearStiffness = 0.1;
 var kSurfaceTension = 0.0008;
@@ -64,9 +64,9 @@ var Ny = kGridHeight;
 var Nz = kGridDepth;
 var voxel = Nx * Ny * Nz;
 
-var volNx = 127;
-var volNy = 127;
-var volNz = 127;
+var volNx = 47;
+var volNy = 47;
+var volNz = 47;
 
 var volInd = (volNx + 1) * (volNy + 1) * (volNz + 1);
 
@@ -478,15 +478,16 @@ function onLoad() {
     SetSimMode(CL_SIM_MODE);
     SetDrawMode(GL_DRAW_MODE);
 
-    document.addEventListener('keydown', function(event) {
-    if (event.keyCode == 80) {
-        // alert('screenshot saved');
+    // document.addEventListener('keydown', function(event) {
+    // if (event.keyCode == 80) {
+    //     alert('screenshot saved');
         
-        var imgData;
-        imgData = canvas.toDataURL();
-        window.open(imgData, "toDataURL() image", "WINW = 800, WINH = 800");
+    //     var imgData;
+    //     var canvasoutput = document.getElementById("output");
+    //     imgData = canvasoutput.toDataURL();
+    //     window.open(imgData, "toDataURL() image", "WINW = 800, WINH = 800");
 
-    }}, true);
+    // }}, true);
     
     setInterval( MainLoop, 0 );
     setInterval( function() { userData.fpsSampler.display(); }, DISPLAYPERIOD);

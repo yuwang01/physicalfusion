@@ -323,7 +323,7 @@ function InitCL() {
             kernel_gridval = program_gridval.createKernel("mc_kernel_gridval");
             kernel_gridGrad = program_gridGrad.createKernel("mc_kernel_gridGrad");
             kernel_cubeindex = program_cubeindex.createKernel("mc_kernel_cubeindex");
-
+            
         } catch (e) {
             console.log("Failed to get kernel: " + e.message);
             return null;
